@@ -17,10 +17,29 @@ set -e
 #   - Fixed: Maximize glitch via forced relayout and size recalculation
 # =============================================================================
 
-CLAUDE_DOWNLOAD_URL="https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe"
+RELEASES_FEED="https://downloads.claude.ai/releases/win32/x64/RELEASES"
+NUPKG_BASE_URL="https://downloads.claude.ai/releases/win32/x64"
 ELECTRON_VERSION=${ELECTRON_VERSION:-"37.0.0"}
 ELECTRON_DOWNLOAD_URL=${ELECTRON_DOWNLOAD_URL:-"https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/electron-v${ELECTRON_VERSION}-linux-x64.zip"}
 MAIN_WINDOW_FIX_URL="https://github.com/emsi/claude-desktop/raw/refs/heads/main/assets/main_window.tgz"
+
+resolve_latest_claude_version() {
+    echo "🔍 Fetching latest Claude Desktop version from releases feed..."
+    local releases
+    releases=$(curl -sf "$RELEASES_FEED") || { echo "❌ Failed to fetch releases feed"; exit 1; }
+
+    local latest_filename
+    latest_filename=$(echo "$releases" | grep -i '\-full\.nupkg' | tail -1 | awk '{print $2}')
+
+    CLAUDE_VERSION=$(echo "$latest_filename" | grep -oP 'AnthropicClaude-\K[0-9]+\.[0-9]+\.[0-9]+(?=-full\.nupkg)')
+    [ -z "$CLAUDE_VERSION" ] && { echo "❌ Could not parse version from releases feed"; exit 1; }
+
+    CLAUDE_NUPKG_URL="${NUPKG_BASE_URL}/AnthropicClaude-${CLAUDE_VERSION}-full.nupkg"
+    echo "✓ Latest version: $CLAUDE_VERSION"
+    echo "✓ Nupkg URL: $CLAUDE_NUPKG_URL"
+}
+
+resolve_latest_claude_version
 
 is_fedora_based() {
     [ -f "/etc/fedora-release" ] && return 0
@@ -100,22 +119,17 @@ mkdir -p "$INSTALL_DIR/lib/$PACKAGE_NAME" "$INSTALL_DIR/share/applications" "$IN
 # Install asar
 command -v asar > /dev/null 2>&1 || npm install -g asar
 
-# Download Claude
-echo "📥 Downloading Claude Desktop..."
-CLAUDE_EXE="$WORK_DIR/Claude-Setup-x64.exe"
-curl -o "$CLAUDE_EXE" "$CLAUDE_DOWNLOAD_URL" || { echo "❌ Download failed"; exit 1; }
+# Download Claude nupkg directly (no exe/hash needed)
+echo "📥 Downloading Claude Desktop ${CLAUDE_VERSION}..."
+NUPKG_FILE="$WORK_DIR/AnthropicClaude-${CLAUDE_VERSION}-full.nupkg"
+curl -o "$NUPKG_FILE" "$CLAUDE_NUPKG_URL" || { echo "❌ Download failed"; exit 1; }
 
-# Extract
-echo "📦 Extracting..."
-cd "$WORK_DIR"
-7z x -y "$CLAUDE_EXE" || { echo "❌ Extract failed"; exit 1; }
-
-NUPKG_FILE=$(find . -name "AnthropicClaude-*-full.nupkg" | head -1)
-[ -z "$NUPKG_FILE" ] && { echo "❌ nupkg not found"; exit 1; }
-
-VERSION=$(echo "$NUPKG_FILE" | grep -oP 'AnthropicClaude-\K[0-9]+\.[0-9]+\.[0-9]+(?=-full\.nupkg)')
+VERSION="$CLAUDE_VERSION"
 echo "📋 Version: $VERSION"
 
+# Extract nupkg
+echo "📦 Extracting..."
+cd "$WORK_DIR"
 7z x -y "$NUPKG_FILE" || { echo "❌ nupkg extract failed"; exit 1; }
 
 # Download Electron
