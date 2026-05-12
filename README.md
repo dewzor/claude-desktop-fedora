@@ -4,12 +4,12 @@
 
 If you run into an issue with this build script, make an issue here. Don't bug Anthropic about it - they already have enough on their plates.
 
-# Claude Desktop for Fedora 43
+# Claude Desktop for Fedora
 
-This is a modified version of the Claude Desktop build script, fixed to work on **Fedora 43** (Wayland/KDE Plasma).
+This is a modified version of the Claude Desktop build script, fixed to work on **Fedora 43 and 44** (Wayland/KDE Plasma).
 
 **Fixes in this version:**
-- **Fedora 43 Support**: Updated dependencies and build process
+- **Fedora 43/44 Support**: Updated dependencies and build process
 - **Google Sign-In Fixed**: Implemented a native module stub to allow Google authentication to work
 - **Layout Fixes**: Fixed window scaling and maximizing glitches
 - **Titlebar Gap Fixed (v8)**: Root cause fix - patches titlebar height constants from 36px to 0
@@ -19,7 +19,7 @@ This is a modified version of the Claude Desktop build script, fixed to work on 
 
 This project was inspired by [k3d3's claude-desktop-linux-flake](https://github.com/k3d3/claude-desktop-linux-flake) and their [Reddit post](https://www.reddit.com/r/ClaudeAI/comments/1hgsmpq/i_successfully_ran_claude_desktop_natively_on/) about running Claude Desktop natively on Linux. Their work provided valuable insights into the application's structure and the native bindings implementation.
 
-And now by me, via [Aaddrick's claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian), modified to work for Fedora 43.
+And now by me, via [Aaddrick's claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian), modified to work for Fedora 43 and 44.
 
 Supports MCP!
 ![image](https://github.com/user-attachments/assets/93080028-6f71-48bd-8e59-5149d148cd45)
@@ -44,7 +44,7 @@ For Fedora-based distributions you can build and install Claude Desktop using th
 - **Why v8 works**: Claude Desktop reserves 36px for titlebar via ternary patterns. Patching these to 0 eliminates the gap at source.
 - **Auto-download latest version** - Script fetches the latest Claude Desktop automatically
 - **Native title bar support** - No more double title bar issue
-- **Fedora 43 Wayland/KDE compatibility** - Automatic environment configuration
+- **Fedora 43/44 Wayland/KDE compatibility** - Automatic environment configuration
 
 ```bash
 # Install build dependencies
@@ -74,7 +74,7 @@ claude-desktop
 Installation video here: https://youtu.be/dvU1yJsyJ5k
 
 **Requirements:**
-- Fedora 41+ Linux distribution (tested on Fedora 43)
+- Fedora 41+ Linux distribution (tested on Fedora 43 and 44)
 - Node.js >= 12.0.0 and npm
 - Root/sudo access for dependency installation
 
