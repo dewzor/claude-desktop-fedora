@@ -51,7 +51,7 @@ For Fedora-based distributions you can build and install Claude Desktop using th
 sudo dnf install rpm-build p7zip nodejs npm
 
 # Clone this repository
-git clone https://github.com/boujuan/claude-desktop-fedora.git
+git clone https://github.com/dewzor/claude-desktop-fedora.git
 cd claude-desktop-fedora
 
 # Build the package (downloads Electron 37 automatically)
