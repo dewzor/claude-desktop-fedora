@@ -1,166 +1,177 @@
+# Claude Desktop for Fedora 44
 
+A native [Claude Desktop](https://claude.ai) build for **Fedora Linux** — auto-downloads the latest version from Anthropic, bundles Electron 37, fixes the titlebar gap at the source, and packages it as a proper Fedora RPM. Tested on **Fedora 43** and **Fedora 44** with KDE Plasma (Wayland and X11). Should also work on GNOME — see notes below.
 
-***THIS IS AN UNOFFICIAL BUILD SCRIPT!***
+> Unofficial build. If you hit a bug, open an issue here — don't bug Anthropic about it.
 
-If you run into an issue with this build script, make an issue here. Don't bug Anthropic about it - they already have enough on their plates.
+![Claude Desktop running on Fedora with MCP servers connected](https://github.com/user-attachments/assets/93080028-6f71-48bd-8e59-5149d148cd45)
 
-# Claude Desktop for Fedora
+## What works
 
-This is a modified version of the Claude Desktop build script, fixed to work on **Fedora 43 and 44** (Wayland/KDE Plasma).
+| Feature | Status |
+| --- | --- |
+| Fedora 43 | Tested |
+| Fedora 44 | Tested |
+| KDE Plasma | Native window frame |
+| GNOME | Likely works (X11 backend, untested) |
+| Ctrl+Alt+Space global popup | Working |
+| System tray | Working |
+| MCP (Model Context Protocol) | Supported |
+| Google Sign-In | Native module stub |
+| Auto-download latest Claude | Yes — official redirect URL |
+| Bundled Electron 37 | No system-Electron conflicts |
+| Titlebar gap | Fixed at source (v8) |
 
-**Fixes in this version:**
-- **Fedora 43/44 Support**: Updated dependencies and build process
-- **Google Sign-In Fixed**: Implemented a native module stub to allow Google authentication to work
-- **Layout Fixes**: Fixed window scaling and maximizing glitches
-- **Titlebar Gap Fixed (v8)**: Root cause fix - patches titlebar height constants from 36px to 0
-- **Auto-Update**: Script automatically downloads the latest Claude Desktop version
-
-# Claude Desktop for Linux
-
-This project was inspired by [k3d3's claude-desktop-linux-flake](https://github.com/k3d3/claude-desktop-linux-flake) and their [Reddit post](https://www.reddit.com/r/ClaudeAI/comments/1hgsmpq/i_successfully_ran_claude_desktop_natively_on/) about running Claude Desktop natively on Linux. Their work provided valuable insights into the application's structure and the native bindings implementation.
-
-And now by me, via [Aaddrick's claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian), modified to work for Fedora 43 and 44.
-
-Supports MCP!
-![image](https://github.com/user-attachments/assets/93080028-6f71-48bd-8e59-5149d148cd45)
-
-Location of the MCP-configuration file is: ~/.config/Claude/claude_desktop_config.json
-
-Supports the Ctrl+Alt+Space popup!
-![image](https://github.com/user-attachments/assets/1deb4604-4c06-4e4b-b63f-7f6ef9ef28c1)
-
-Supports the Tray menu! (Screenshot of running on KDE)
-![image](https://github.com/user-attachments/assets/ba209824-8afb-437c-a944-b53fd9ecd559)
-
-# Installation
-
-## Fedora Package (Updated for latest version!)
-
-For Fedora-based distributions you can build and install Claude Desktop using the provided build script.
-
-**What's New (v8):**
-
-- **Titlebar gap eliminated (ROOT CAUSE FIX)** - Patches height constants (`?0:36` -> `?0:0`) in the bundled JavaScript
-- **Why v8 works**: Claude Desktop reserves 36px for titlebar via ternary patterns. Patching these to 0 eliminates the gap at source.
-- **Auto-download latest version** - Script fetches the latest Claude Desktop automatically
-- **Native title bar support** - No more double title bar issue
-- **Fedora 43/44 Wayland/KDE compatibility** - Automatic environment configuration
+## Quick install
 
 ```bash
-# Install build dependencies
+# Install build dependencies (the script will install missing ones automatically)
 sudo dnf install rpm-build p7zip nodejs npm
 
-# Clone this repository
+# Clone and build
 git clone https://github.com/dewzor/claude-desktop-fedora.git
 cd claude-desktop-fedora
-
-# Build the package (downloads Electron 37 automatically)
 chmod +x build-fedora.sh
 sudo ./build-fedora.sh
 
-# Install the package
-sudo dnf install $(uname -m)/claude-desktop-*.rpm
+# Install the RPM that the build produced
+sudo dnf install build/electron-app/$(uname -m)/claude-desktop-*.rpm
 
-# Launch Claude Desktop
+# Launch
 claude-desktop
 ```
 
-**That's it!** The launcher script includes all necessary fixes:
-- Native KDE/GNOME title bar (no double title bar)
-- GTK conflict prevention for Fedora 42+
-- Proper electron path for app drawer compatibility
-- All necessary sandbox and logging flags
+The script fetches the latest Claude Desktop from Anthropic's official redirect URL — no version pinning required. Re-run anytime to update.
 
-Installation video here: https://youtu.be/dvU1yJsyJ5k
+## What v8 fixes
 
-**Requirements:**
-- Fedora 41+ Linux distribution (tested on Fedora 43 and 44)
-- Node.js >= 12.0.0 and npm
-- Root/sudo access for dependency installation
+The 36px titlebar gap that appeared in earlier builds is fixed at the source.
 
-**Known Issues:**
-- If upgrading from an older build, you may need to uninstall the old package first: `sudo dnf remove claude-desktop`
+Claude Desktop's bundled JavaScript reserves 36px for a Windows-style titlebar via ternary patterns like `oR=hn?0:36`. v8 patches those constants from `36` to `0` so the gap doesn't render in the first place. A CSS backup with a negative-margin rule covers any residual pixels.
 
-## Debian Package
+Other things v8 ships:
 
-For Debian users, please refer to [Aaddrick's claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian) repository. Their implementation is specifically designed for Debian and provides the original build script that inspired THIS project.
+- **Auto-download latest Claude Desktop** via Anthropic's official redirect URL (no manual version updates, browser-style headers bypass Cloudflare blocks)
+- **Bundled Electron v37.0.0** — avoids GTK/Wayland conflicts with Fedora 42+ system Electron
+- **Native window frame** on KDE Plasma (no double titlebar)
+- **Menu bar removed**
+- **Window maximize / resize** forced relayout fix
+- **Google Sign-In** via Linux native module stub
+- **IPC origin validation** fix for `file://` URLs
+- **GPU sandbox disabled** in the launcher for Wayland stability
 
-## NixOS Implementation
+![Ctrl+Alt+Space global popup on Fedora Linux](https://github.com/user-attachments/assets/1deb4604-4c06-4e4b-b63f-7f6ef9ef28c1)
 
-For NixOS users, please refer to [k3d3's claude-desktop-linux-flake](https://github.com/k3d3/claude-desktop-linux-flake) repository. Their implementation is specifically designed for NixOS and provides the original Nix flake that inspired this project.
+![Claude Desktop tray menu on KDE Plasma](https://github.com/user-attachments/assets/ba209824-8afb-437c-a944-b53fd9ecd559)
 
-# How it works
+## Requirements
 
-Claude Desktop is an Electron application packaged as a Windows executable. Our build script performs several key operations to make it work on Linux:
+- Fedora 43 or Fedora 44 (works on Fedora 41+, actively tested on 43 and 44)
+- Node.js ≥ 12 and npm
+- Root / sudo for dependency install and RPM install
 
-1. Downloads and extracts the Windows installer
-2. Unpacks the app.asar archive containing the application code
-3. Replaces the Windows-specific native module with a Linux-compatible implementation
-4. Applies titlebar and frame fixes for proper Linux desktop integration
-5. Repackages everything into a proper RPM package
-
-The process works because Claude Desktop is largely cross-platform, with only one platform-specific component that needs replacement.
-
-## The Native Module Challenge
-
-The only platform-specific component is a native Node.js module called `claude-native-bindings`. This module provides system-level functionality like:
-
-- Keyboard input handling
-- Window management
-- System tray integration
-- Monitor information
-
-Our build script replaces this Windows-specific module with a Linux-compatible implementation that:
-
-1. Provides the same API surface to maintain compatibility
-2. Implements keyboard handling using the correct key codes from the reference implementation
-3. Stubs out unnecessary Windows-specific functionality
-4. Maintains critical features like the Ctrl+Alt+Space popup and system tray
-
-The replacement module is carefully designed to match the original API while providing Linux-native functionality where needed. This approach allows the rest of the application to run unmodified, believing it's still running on Windows.
-
-## Build Process Details
-
-> Note: The build script was generated by Claude (Anthropic) to help create a Linux-compatible version of Claude Desktop.
-
-The build script (`build-fedora.sh`) handles the entire process:
-
-1. Checks for a Fedora-based system and required dependencies
-2. Downloads the official Windows installer (auto-fetches latest version)
-3. Extracts the application resources
-4. Processes icons for Linux desktop integration
-5. Unpacks and modifies the app.asar:
-   - Replaces the native module with our Linux version
-   - Applies titlebar fixes (height constant patching, native frame, CSS backup)
-   - Updates keyboard key mappings
-   - Preserves all other functionality
-6. Creates a proper RPM package with:
-   - Desktop entry for application menus
-   - System-wide icon integration
-   - Proper dependency management
-   - Post-install configuration
+`rpm-build`, `p7zip`, `wrestool`, `icotool`, `imagemagick`, and `sqlite3` are pulled in by the build script automatically with `dnf`.
 
 ## Updating
 
-The script automatically downloads the latest version of Claude Desktop from the official Anthropic servers using their redirect API. Simply re-run the build script to update:
+Re-run the build:
 
 ```bash
 sudo ./build-fedora.sh
-sudo dnf install $(uname -m)/claude-desktop-*.rpm
+sudo dnf install build/electron-app/$(uname -m)/claude-desktop-*.rpm
 ```
 
-**Manual Version Override:** If you need to build a specific version (for testing or compatibility), you can edit the `CLAUDE_DOWNLOAD_URL` at the top of `build-fedora.sh` to point to a specific installer URL.
+The script always fetches the latest version. To pin a specific Claude Desktop version (testing or compatibility), edit `CLAUDE_DOWNLOAD_URL` at the top of `build-fedora.sh`.
 
-# License
+## MCP setup
 
-The build scripts in this repository are dual-licensed under the terms of the MIT license and the Apache License (Version 2.0).
+MCP (Model Context Protocol) servers are configured at:
 
-See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE) for details.
+```
+~/.config/Claude/claude_desktop_config.json
+```
 
-The Claude Desktop application, not included in this repository, is likely covered by [Anthropic's Consumer Terms](https://www.anthropic.com/legal/consumer-terms).
+Same format as macOS and Windows Claude Desktop — drop in your `mcpServers` block and restart the app.
 
-## Contribution
+## How it works
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
+Claude Desktop ships as an Electron app wrapped in a Windows installer. The build script:
+
+1. Downloads the official Windows installer from Anthropic (always-latest redirect URL)
+2. Extracts `app.asar` and resources
+3. Replaces the Windows-only `claude-native-bindings` module with a Linux-compatible JavaScript stub
+4. Patches the bundled JS:
+   - Titlebar height constants (`?0:36` → `?0:0`)
+   - `titleBarStyle` configuration for native window frame
+   - Menu bar removal
+   - Window resize / maximize handlers
+   - Google Sign-In native module stub
+5. Adds CSS overrides as a backup for any residual titlebar pixels
+6. Bundles standalone Electron 37.0.0 inside the package
+7. Packs everything into a Fedora RPM with desktop entry, icons, and proper dependencies
+
+### Native module replacement
+
+The only platform-specific component in Claude Desktop is `claude-native-bindings` — a native Node module that provides:
+
+- Keyboard input (the Ctrl+Alt+Space popup)
+- Window management
+- System tray integration
+- Monitor enumeration
+
+The Linux stub matches the original API surface, implements keyboard handling with correct X11 key codes, and stubs out Windows-only calls. The rest of Claude Desktop runs unmodified — it doesn't know it's not on Windows.
+
+### Launcher
+
+`/usr/bin/claude-desktop` starts the bundled Electron with:
+
+- `GDK_BACKEND=x11` and `GTK_USE_PORTAL=0` — avoids GTK conflicts on Fedora 42+ Wayland sessions
+- `--ozone-platform=x11` — forces the stable X11 backend
+- `--disable-gpu-sandbox --no-sandbox` — required for unprivileged user launch
+- File-based logging at `~/.claude-desktop.log`
+
+## FAQ
+
+### Does this work on Fedora 43?
+Yes, tested.
+
+### Does this work on Fedora 44?
+Yes — tested on Wayland (KDE Plasma) and X11.
+
+### How do I fix the double titlebar / titlebar gap on KDE?
+v8 fixes it at the source. Rebuild with `sudo ./build-fedora.sh`.
+
+### Does MCP (Model Context Protocol) work?
+Yes. Config lives at `~/.config/Claude/claude_desktop_config.json`.
+
+### Does the Ctrl+Alt+Space popup work?
+Yes — handled by the Linux native module stub.
+
+### Does Google Sign-In work?
+Yes — via a Linux-compatible native module stub.
+
+### Does it work on GNOME?
+Probably, but it's not actively tested. The build is KDE Plasma-focused — the v8 titlebar fix targets the gap that appears under KDE, and the launcher forces XWayland (`--ozone-platform=x11`, `GDK_BACKEND=x11`) which works on GNOME Wayland too. Two caveats:
+- GNOME under Wayland uses Mutter for window decorations on XWayland apps. The native frame should render, but exact appearance depends on your Mutter version.
+- Portals are disabled (`GTK_USE_PORTAL=0`), which can affect file pickers, screen sharing, and notifications on GNOME more than on KDE.
+
+If you try it on GNOME, open an issue with what you see — the README will get more honest over time.
+
+### Will it work on Fedora 41 or 42?
+The script targets any Fedora-based distro (checks `/etc/fedora-release` and `/etc/os-release`). 41 and 42 should work — they're not actively tested, but the build is generic enough.
+
+### Why bundle Electron 37 instead of using the system Electron?
+Fedora 42+ ships system Electron versions that conflict with Claude's Windows build (GTK/Wayland crashes). Bundling Electron 37 inside the RPM avoids the conflict entirely.
+
+### How do I uninstall?
+```bash
+sudo dnf remove claude-desktop
+```
+
+## License
+
+Dual-licensed under MIT and Apache 2.0. See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
+
+The Claude Desktop application is not included in this repository and is covered by [Anthropic's Consumer Terms](https://www.anthropic.com/legal/consumer-terms).
+
+> Note: The build script was originally generated with Claude's assistance.
