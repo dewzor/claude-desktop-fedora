@@ -222,7 +222,14 @@ find app.asar.contents -name "*.js" -type f 2>/dev/null | while read -r jsfile; 
     sed -i 's/titleBarStyle:"hidden",//g' "$jsfile" 2>/dev/null || true
     sed -i 's/,titleBarStyle:"hidden"//g' "$jsfile" 2>/dev/null || true
     sed -i 's/titleBarStyle:"hiddenInset",//g' "$jsfile" 2>/dev/null || true
-    sed -i 's/titleBarOverlay:[^,}]*,//g' "$jsfile" 2>/dev/null || true
+    # NOTE: Do NOT strip titleBarOverlay with a blunt regex. The pattern
+    # 'titleBarOverlay:[^,}]*,' is unsafe: [^,}] does NOT exclude '{', so it
+    # greedily eats across object/function boundaries. On this bundle it
+    # mangled a registration `titleBarOverlay:(A,e)=>{...}` into `},e)=>{...}`,
+    # producing invalid JS ("Unexpected token ':'") and crashing the app on
+    # launch before any window opens. titleBarOverlay is a macOS/Windows-only
+    # BrowserWindow option and is ignored on Linux with titleBarStyle:"default",
+    # so there is no need to remove it at all.
     sed -i 's/autoHideMenuBar:false/autoHideMenuBar:true/g' "$jsfile" 2>/dev/null || true
     sed -i 's/autoHideMenuBar:!1/autoHideMenuBar:!0/g' "$jsfile" 2>/dev/null || true
 done
