@@ -6,6 +6,46 @@ A native [Claude Desktop](https://claude.ai) build for **Fedora Linux** — auto
 
 ![Claude Desktop running on Fedora with MCP servers connected](https://github.com/user-attachments/assets/93080028-6f71-48bd-8e59-5149d148cd45)
 
+## Current versions need the official Linux build
+
+Claude Desktop now publishes an **official Linux x86_64 build**, and recent
+releases can no longer be served by repacking the Windows installer.
+
+Two native modules are the blocker:
+
+- **`@ant/claude-native`** — the app hard-requires it for filesystem
+  containment and explicitly refuses to degrade without it:
+  `@ant/claude-native is required for safe-fs containment but failed to load;
+  refusing to fall back to a path-based open (CC-2885)`. The JS stub this
+  script installs cannot satisfy that, and the module also moved from
+  `claude-native` to `@ant/claude-native`, so a stub at the old path is never
+  loaded. In a Windows repack the real module is a PE32+ DLL:
+  `ERR_DLOPEN_FAILED: invalid ELF header`.
+- **`node-pty`** — Claude Code's terminal needs `prebuilds/linux-x64/pty.node`.
+  The Windows package ships only `prebuilds/win32-x64/conpty.node`.
+
+Net effect on a current release built from the Windows installer: the app
+starts, but **the Claude Code tab does not work**.
+
+`build-official.sh` builds an RPM from Anthropic's official Linux `.deb`
+instead, where both modules are real ELF x86-64 objects:
+
+```bash
+./build-official.sh
+sudo dnf install build/official/claude-desktop-*.rpm
+```
+
+The payload is unmodified upstream content, so none of the `app.asar` patching
+in `build-fedora.sh` is needed — including the titlebar work, since the official
+build already draws a correct native frame. Two Debian-specific `postinst`
+behaviours are dropped: the AppArmor `flags=(unconfined)` userns profile (only
+needed on Ubuntu 24.04+, which restricts unprivileged userns; Fedora does not)
+and apt repo registration. `chrome-sandbox` stays setuid `4755` and the Chromium
+sandbox stays enabled — no `--no-sandbox`, and no launcher wrapper.
+
+`build-fedora.sh` is unchanged and still builds 0.14.x-era releases if you need
+one.
+
 ## What works
 
 | Feature | Status |
