@@ -101,6 +101,34 @@ Earlier versions of this repo (`build-fedora.sh`, still in the tree) rebuilt Cla
 
 Net effect: the app starts, but **the Claude Code tab does not work**. The official Linux build ships both modules as real ELF x86-64 objects, and its native frame is already correct, so none of the old patching is needed.
 
+## Troubleshooting on Fedora 44
+
+Exact error strings and what they mean. All of these are fixed by building with `build-official.sh`.
+
+### `@ant/claude-native is required for safe-fs containment but failed to load` / `CC-2885`
+You're running a Windows-repack build (`build-fedora.sh` or any of the older Fedora scripts). Current Claude Desktop hard-requires the real native module and refuses to start Claude Code without it. Rebuild from the official Linux build.
+
+### `ERR_DLOPEN_FAILED: invalid ELF header` / `Failed to load Claude Native`
+The `claude-native-binding.node` in your install is a Windows PE32+ DLL, not a Linux ELF object. Same cause as above — Windows repack. Rebuild with `build-official.sh`; it verifies both native modules are ELF x86-64 before packaging.
+
+### Claude Code tab not working / blank / terminal never appears
+Claude Code's terminal needs `node-pty`'s `prebuilds/linux-x64/pty.node`. Windows packages only ship `win32-x64/conpty.node`. Rebuild from the official Linux build and check `~/.config/Claude/logs/main.log` for `[CCD] Initialized`.
+
+### `⚠ titleBarStyle pattern not found` during `build-fedora.sh`
+The legacy script's titlebar `sed` no longer matches current releases. It's harmless but it's also a sign you're on the wrong path — the official build already draws a correct native frame. Use `build-official.sh`.
+
+### Build fails with HTTP 403 / Cloudflare page
+Anthropic's download endpoint sits behind Cloudflare and rejects non-browser user agents. `build-official.sh` sends a browser-shaped UA. If it still fails, download the `.deb` in a browser and pass `--deb PATH`.
+
+### `'--ozone-platform=wayland' is not compatible with Vulkan`
+Chromium noise on Wayland sessions. Cosmetic; ignore.
+
+### Cowork says the VM sandbox is unavailable
+Install the optional VM stack: `sudo dnf install qemu-system-x86 edk2-ovmf virtiofsd`. The RPM lists these as `Suggests:`.
+
+### Package conflicts with `claude-desktop-unofficial`
+That's [aaddrick/claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian)'s RPM, which adds a launcher wrapper and a `--doctor`. Both packages share `~/.config/Claude`, so run one or the other, not both.
+
 ## Legacy: `build-fedora.sh`
 
 Kept for anyone who needs a 0.14.x-era build. It is no longer the recommended path and is not maintained against current releases.
