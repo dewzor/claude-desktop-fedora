@@ -4,7 +4,7 @@ Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's 
 
 **TL;DR:** `./build-official.sh && sudo dnf install build/official/claude-desktop-*.rpm`
 
-> Unofficial packaging. Anthropic ships the app; this repo only rewraps it for `dnf`. If you hit a packaging bug, open an issue here — don't bug Anthropic about it.
+> Unofficial packaging. Anthropic ships the app; this repo only rewraps it for `dnf`. If you hit a packaging bug, open an issue here, not with Anthropic.
 
 ## Install Claude Desktop on Fedora 44
 
@@ -25,28 +25,28 @@ The build runs entirely as your own user; root is only needed for the final `dnf
 
 | Feature | Status |
 | --- | --- |
-| Fedora 44 — KDE Plasma (Wayland) | Tested |
-| Fedora 44 — GNOME (Wayland) | Tested |
+| Fedora 44, KDE Plasma (Wayland) | Tested |
+| Fedora 44, GNOME (Wayland) | Tested |
 | Claude Code tab (integrated terminal) | Working |
 | Cowork | Working |
 | MCP (Model Context Protocol) | Working |
 | Chrome extension MCP bridge | Working |
-| Native window frame | Yes — no patching needed |
+| Native window frame | Yes, no patching needed |
 | Chromium sandbox | Enabled (`chrome-sandbox` setuid 4755, no `--no-sandbox`) |
 | System tray | Working |
-| Auto-download latest Claude | Yes — official redirect URL |
+| Auto-download latest Claude | Yes, via the official redirect URL |
 | Architecture | x86_64 only (see FAQ) |
-| Auto-update | No — re-run the build script |
+| Auto-update | No. Re-run the build script |
 
 ## How the Fedora RPM is built
 
-Anthropic publishes an official Linux build of Claude Desktop, but only as a `.deb`. The payload inside is ordinary, self-contained Linux content under `/usr/lib/claude-desktop` — nothing Debian-specific except the wrapper and dependency names.
+Anthropic publishes an official Linux build of Claude Desktop, but only as a `.deb`. The payload inside is ordinary, self-contained Linux content under `/usr/lib/claude-desktop`. Nothing in it is Debian-specific except the wrapper and dependency names.
 
 `build-official.sh`:
 
 1. Resolves and downloads the current official `.deb` from `https://claude.ai/api/desktop/linux/x64/deb/latest/redirect` (~165 MB; browser-shaped UA to satisfy Cloudflare)
 2. Unpacks it and reads the version from the control file
-3. Verifies that `@ant/claude-native` and `node-pty` are real ELF x86-64 objects — fails loudly if not
+3. Verifies that `@ant/claude-native` and `node-pty` are real ELF x86-64 objects, and fails loudly if not
 4. Maps the Debian dependencies to Fedora package names
 5. Builds an RPM with `rpmbuild`, preserving `chrome-sandbox` setuid via `%attr(4755,root,root)`
 6. Confirms the setuid bit survived into the package metadata
@@ -55,7 +55,7 @@ The payload is **unmodified upstream content**. No `app.asar` patching, no stubs
 
 Two Debian-specific `postinst` behaviours are intentionally dropped:
 
-- The AppArmor `flags=(unconfined)` userns profile — only needed on Ubuntu 24.04+, which restricts unprivileged user namespaces. Fedora leaves them enabled.
+- The AppArmor `flags=(unconfined)` userns profile. That one is only needed on Ubuntu 24.04+, which restricts unprivileged user namespaces. Fedora leaves them enabled.
 - apt repository registration.
 
 ### Options
@@ -86,7 +86,7 @@ MCP servers are configured at:
 ~/.config/Claude/claude_desktop_config.json
 ```
 
-Same format as macOS and Windows Claude Desktop — drop in your `mcpServers` block and restart the app.
+Same format as macOS and Windows Claude Desktop. Drop in your `mcpServers` block and restart the app.
 
 Logs live in `~/.config/Claude/logs/` (`main.log`, `mcp.log`, `ssh.log`, …).
 
@@ -97,7 +97,7 @@ Earlier versions of this repo (`build-fedora.sh`, still in the tree) rebuilt Cla
 - **`@ant/claude-native`** is now hard-required for filesystem containment, and the app explicitly refuses to degrade without it:
   `@ant/claude-native is required for safe-fs containment but failed to load; refusing to fall back to a path-based open (CC-2885)`.
   A JS stub can't satisfy that, and the module also moved from `claude-native` to `@ant/claude-native`, so the old stub path is never even loaded. In a Windows repack the real module is a PE32+ DLL: `ERR_DLOPEN_FAILED: invalid ELF header`.
-- **`node-pty`** — Claude Code's terminal needs `prebuilds/linux-x64/pty.node`. The Windows package only ships `prebuilds/win32-x64/conpty.node`.
+- **`node-pty`**: Claude Code's terminal needs `prebuilds/linux-x64/pty.node`. The Windows package only ships `prebuilds/win32-x64/conpty.node`.
 
 Net effect: the app starts, but **the Claude Code tab does not work**. The official Linux build ships both modules as real ELF x86-64 objects, and its native frame is already correct, so none of the old patching is needed.
 
@@ -109,13 +109,13 @@ Exact error strings and what they mean. All of these are fixed by building with 
 You're running a Windows-repack build (`build-fedora.sh` or any of the older Fedora scripts). Current Claude Desktop hard-requires the real native module and refuses to start Claude Code without it. Rebuild from the official Linux build.
 
 ### `ERR_DLOPEN_FAILED: invalid ELF header` / `Failed to load Claude Native`
-The `claude-native-binding.node` in your install is a Windows PE32+ DLL, not a Linux ELF object. Same cause as above — Windows repack. Rebuild with `build-official.sh`; it verifies both native modules are ELF x86-64 before packaging.
+The `claude-native-binding.node` in your install is a Windows PE32+ DLL, not a Linux ELF object. Same cause as above, a Windows repack. Rebuild with `build-official.sh`; it verifies both native modules are ELF x86-64 before packaging.
 
 ### Claude Code tab not working / blank / terminal never appears
 Claude Code's terminal needs `node-pty`'s `prebuilds/linux-x64/pty.node`. Windows packages only ship `win32-x64/conpty.node`. Rebuild from the official Linux build and check `~/.config/Claude/logs/main.log` for `[CCD] Initialized`.
 
 ### `⚠ titleBarStyle pattern not found` during `build-fedora.sh`
-The legacy script's titlebar `sed` no longer matches current releases. It's harmless but it's also a sign you're on the wrong path — the official build already draws a correct native frame. Use `build-official.sh`.
+The legacy script's titlebar `sed` no longer matches current releases. It's harmless but it's also a sign you're on the wrong path. The official build already draws a correct native frame. Use `build-official.sh`.
 
 ### Build fails with HTTP 403 / Cloudflare page
 Anthropic's download endpoint sits behind Cloudflare and rejects non-browser user agents. `build-official.sh` sends a browser-shaped UA. If it still fails, download the `.deb` in a browser and pass `--deb PATH`.
@@ -144,10 +144,10 @@ Known limits on current releases: the Claude Code tab doesn't work (see above), 
 ## FAQ
 
 ### Does Claude Desktop work on Fedora 44?
-Yes — tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland).
+Yes, tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland).
 
 ### Does it work on Fedora 43 or older?
-It should. The payload is self-contained (bundled Electron), so the only real constraint is the runtime dependency list, which resolves on 43. Not actively tested — open an issue with what you see.
+It should. The payload is self-contained (bundled Electron), so the only real constraint is the runtime dependency list, which resolves on 43. Not actively tested. If you try it, open an issue with what you see.
 
 ### Does the Claude Code tab work?
 Yes. That's the whole point of the official-build path. Look for `[CCD] Initialized` in `~/.config/Claude/logs/main.log`.
@@ -159,7 +159,7 @@ Yes. Cowork's optional full-VM sandbox needs `qemu-system-x86`, `edk2-ovmf` and 
 Yes. Config lives at `~/.config/Claude/claude_desktop_config.json`.
 
 ### Why x86_64 only?
-Anthropic's direct-download endpoint only serves x86_64. An `aarch64` build exists in their apt repo; if you need it, fetch that `.deb` yourself and pass it in with `--deb PATH` (the script currently refuses non-x86_64 hosts — patches welcome).
+Anthropic's direct-download endpoint only serves x86_64. An `aarch64` build exists in their apt repo; if you need it, fetch that `.deb` yourself and pass it in with `--deb PATH` (the script currently refuses non-x86_64 hosts, patches welcome).
 
 ### I see a Wayland/Vulkan warning in the logs
 `'--ozone-platform=wayland' is not compatible with Vulkan` is Chromium noise. It's cosmetic.
@@ -174,8 +174,8 @@ sudo dnf remove claude-desktop
 
 ## Credits
 
-- [@sharpandpearl](https://github.com/sharpandpearl) — `build-official.sh` and the analysis of why the Windows repack stopped working ([#4](https://github.com/dewzor/claude-desktop-fedora/pull/4)).
-- [@randy-johnson](https://github.com/randy-johnson) — `titleBarOverlay` regex fix on the legacy script ([#3](https://github.com/dewzor/claude-desktop-fedora/pull/3)).
+- [@sharpandpearl](https://github.com/sharpandpearl): `build-official.sh` and the analysis of why the Windows repack stopped working ([#4](https://github.com/dewzor/claude-desktop-fedora/pull/4)).
+- [@randy-johnson](https://github.com/randy-johnson): `titleBarOverlay` regex fix on the legacy script ([#3](https://github.com/dewzor/claude-desktop-fedora/pull/3)).
 
 ## License
 

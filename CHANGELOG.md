@@ -1,8 +1,8 @@
 # Changelog
 
-## v9 — 2026-08-29
+## v9 (2026-08-29)
 
-**Official Linux build.** New primary path, `build-official.sh` — contributed by [@sharpandpearl](https://github.com/sharpandpearl) in [#4](https://github.com/dewzor/claude-desktop-fedora/pull/4).
+**Official Linux build.** New primary path, `build-official.sh`, contributed by [@sharpandpearl](https://github.com/sharpandpearl) in [#4](https://github.com/dewzor/claude-desktop-fedora/pull/4).
 
 - Builds the RPM from Anthropic's official Linux x86_64 `.deb` instead of repacking the Windows installer.
 - Payload is unmodified upstream content: no `app.asar` patching, no native-module stub, no CSS, no launcher wrapper.
