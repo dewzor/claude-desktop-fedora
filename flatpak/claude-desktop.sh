@@ -15,4 +15,19 @@ set -e
 export TMPDIR="${XDG_RUNTIME_DIR}/app/${FLATPAK_ID}"
 mkdir -p "${TMPDIR}"
 
+# Claude Code has to run on the host, with the user's real shell, PATH and
+# tools. The app reads $SHELL for both of the places that matter: the worker
+# that resolves the login-shell environment, and the Claude Code terminal. Point
+# it at the wrapper that hands both to the host through the
+# org.freedesktop.Flatpak portal.
+#
+# Probe the portal first. If it does not answer, leave $SHELL alone, so the app
+# falls back to its old sandbox-only behaviour instead of failing to open a
+# terminal at all.
+if /app/bin/host-spawn --no-pty true >/dev/null 2>&1; then
+    export SHELL=/app/bin/host-shell
+else
+    echo "claude-desktop: host portal unreachable, Claude Code stays in the sandbox" >&2
+fi
+
 exec zypak-wrapper /app/extra/claude-desktop "$@"

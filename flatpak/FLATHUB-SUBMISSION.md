@@ -21,11 +21,22 @@ flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest io.githu
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
 ```
 
-It returns four errors, and all four are the human gates below. Nothing else
-was flagged: no permission complaints beyond home access, no end-of-life
-runtime, no metainfo problems.
+The manifest lint returns two errors, both of them permissions a reviewer has
+to agree to:
 
-## Three things that need you before any PR
+```json
+{
+    "errors": [
+        "finish-args-flatpak-spawn-access",
+        "finish-args-home-filesystem-access"
+    ]
+}
+```
+
+The repo lint adds the screenshot and app ID errors below. Nothing else was
+flagged: no end-of-life runtime, no metainfo problems.
+
+## Four things that need you before any PR
 
 ### 1. A GitHub repo whose name matches the app ID
 
@@ -91,12 +102,44 @@ agree. Say it plainly in the PR: Claude Code and Cowork read and write the
 user's own project files, and the agent opens files the user never clicked, so
 a portal file chooser cannot express what the app does. Point out that every
 other permission in the manifest is narrow, that there is no
-`--socket=session-bus`, no `--talk-name=org.freedesktop.Flatpak`, and no
-`--device=all`.
+`--socket=session-bus` and no `--device=all`.
 
 Flathub may still say no, or ask for `--filesystem=host` to be avoided (it
 already is). If they refuse home access the app is not worth shipping without
 it, and that is a fair outcome to accept rather than argue.
+
+### 4. An exception for host command execution
+
+```
+finish-args-flatpak-spawn-access
+```
+
+`--talk-name=org.freedesktop.Flatpak` lets the app run a command on the host.
+Claude Code needs it. A Claude Code session runs git, then whatever the project
+builds with: node, python, make, the user's own scripts. None of that is in the
+freedesktop runtime. Bundling git would not fix this. It would silence the app's
+git check while every command still ran against a sandbox holding none of the
+user's tools and none of the hooks in their repositories.
+
+The manifest uses it in two narrow places, both visible in `claude-desktop.sh`,
+`host-shell.sh` and `host-git.sh`:
+
+- `$SHELL` points at `/app/bin/host-shell`, so the two places the app reads it
+  land on the host: the worker that resolves the login-shell environment, and
+  the Claude Code terminal.
+- `/app/bin/git` and `/app/bin/git-lfs` are symlinks to a wrapper that runs the
+  host's git.
+
+Say in the PR that this is the same permission the VS Code, VSCodium and
+JetBrains Flatpaks carry, granted for the same reason, and that it is what makes
+the app's coding agent honest rather than merely quiet. Flathub's requirements
+already anticipate development tools asking for it.
+
+The helper is [host-spawn](https://github.com/1player/host-spawn), MIT, built
+from a pinned release tarball with its three Go dependencies vendored from
+pinned tarballs, so the build stays offline. It is used instead of
+`flatpak-spawn` because it allocates a pseudo-terminal for the host process and
+forwards window-size changes and signals, which the Claude Code terminal needs.
 
 ## Two risks worth knowing before you spend the time
 
@@ -137,6 +180,8 @@ io.github.dewzor.ClaudeDesktop.yaml
 io.github.dewzor.ClaudeDesktop.metainfo.xml
 io.github.dewzor.ClaudeDesktop.desktop
 claude-desktop.sh
+host-shell.sh
+host-git.sh
 icons/claude-desktop-16.png
 icons/claude-desktop-32.png
 icons/claude-desktop-48.png
@@ -193,13 +238,24 @@ the description part:
 > in, and logs `[CCD] Initialized`. Renderers run under zypak with
 > `--enable-sandbox`; there is no `--no-sandbox` anywhere.
 >
-> On permissions: the only broad one is `--filesystem=home`, and I would like to
-> ask for an exception for it. Claude Code and Cowork read and write the user's
-> project files, and the agent opens files the user never picked in a dialog, so
-> the file chooser portal cannot cover it. Everything else is narrow: no
-> `--socket=session-bus`, no `--talk-name=org.freedesktop.Flatpak`, no
-> `--device=all`. `--device=kvm` is there because Cowork can run tasks in a VM;
-> without it that one feature is unavailable and the rest still works.
+> On permissions, two need an exception and I would like to ask for both.
+>
+> `--filesystem=home`: Claude Code and Cowork read and write the user's project
+> files, and the agent opens files the user never picked in a dialog, so the file
+> chooser portal cannot cover it.
+>
+> `--talk-name=org.freedesktop.Flatpak`: Claude Code is a coding agent. Its
+> sessions run git, and then whatever the project builds with. None of that is in
+> the runtime. Bundling git would only silence the app's git check while every
+> command still ran against a toolless sandbox. The app uses the portal in two
+> places: `$SHELL` points at a wrapper that runs the user's host shell, and
+> `/app/bin/git` is a wrapper that runs the host's git. The helper is host-spawn
+> (MIT), built from source with vendored dependencies. This is the same
+> permission the VS Code, VSCodium and JetBrains Flatpaks carry.
+>
+> Everything else is narrow: no `--socket=session-bus`, no `--device=all`.
+> `--device=kvm` is there because Cowork can run tasks in a VM; without it that
+> one feature is unavailable and the rest still works.
 >
 > The manifest is based on gordonmessmer's com.anthropic.Claude
 > (https://github.com/gordonmessmer/com.anthropic.Claude), which bundles the

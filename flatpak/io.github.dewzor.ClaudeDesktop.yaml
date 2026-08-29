@@ -22,6 +22,11 @@ runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 command: claude-desktop
 
+# Go, to build host-spawn from source. Build time only: the extension is not
+# part of the finished app.
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+
 # The payload arrives at install time, so there are no locale directories to
 # split out at build time.
 separate-locales: false
@@ -69,10 +74,77 @@ finish-args:
   # only disables the VM sandbox; the rest of Cowork still runs.
   - --device=kvm
 
+  # Claude Code is a coding agent. Its sessions need the user's real toolchain:
+  # git first of all, then node, python, and whatever else a project builds
+  # with. None of that is in the runtime, and bundling git would not help: it
+  # would silence the app's git check while every command still ran against a
+  # sandbox holding none of the user's tools and none of the hooks in their
+  # repositories. This portal name lets the app run those commands on the host.
+  # It is the same permission the VS Code, VSCodium and JetBrains Flatpaks carry
+  # on Flathub, for the same reason. It applies to the Claude Code terminal and
+  # to git; the rest of the app stays inside the sandbox.
+  - --talk-name=org.freedesktop.Flatpak
+
   # Use the host cursor theme instead of the runtime's default.
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
 
 modules:
+  # host-spawn runs a command on the host through the org.freedesktop.Flatpak
+  # portal above. It is used instead of flatpak-spawn because it allocates a
+  # pseudo-terminal for the host process and forwards window-size changes and
+  # signals, which the Claude Code terminal needs and flatpak-spawn does not do.
+  #
+  # Go, MIT licensed, three dependencies. They are vendored from pinned release
+  # tarballs so the build stays offline.
+  - name: host-spawn
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/golang/bin
+      env:
+        GOFLAGS: -mod=vendor
+        GOTOOLCHAIN: local
+    build-commands:
+      - go build -ldflags "-s -w -X main.Version=1.6.2" -o "${FLATPAK_DEST}/bin/host-spawn" .
+    sources:
+      - type: archive
+        url: https://github.com/1player/host-spawn/archive/refs/tags/v1.6.2.tar.gz
+        sha256: 77be74180d3c14cdf6199e2f5d77ad5a732b5902beecfdb81a3760038862af43
+        x-checker-data:
+          type: git
+          url: https://github.com/1player/host-spawn.git
+          tag-pattern: "^v([\\d.]+)$"
+
+      - type: archive
+        url: https://github.com/godbus/dbus/archive/refs/tags/v5.1.0.tar.gz
+        sha256: 2f4939ab13a20178584ef534293abc5b6744bb5b6232432050c5a3ab2ab85fd7
+        dest: vendor/github.com/godbus/dbus/v5
+
+      - type: archive
+        url: https://github.com/pkg/term/archive/refs/tags/v1.1.0.tar.gz
+        sha256: dc7e94b88b5d494264d28923a58a73732ed066897a916ab36568fac2b32a91d5
+        dest: vendor/github.com/pkg/term
+
+      - type: archive
+        url: https://github.com/golang/sys/archive/refs/tags/v0.15.0.tar.gz
+        sha256: b0bc04c5a1d1ae7c5962e66f19def881b5ab2191cc08cce5021fe7e952ed5484
+        dest: vendor/golang.org/x/sys
+
+      # Written by `go mod vendor` against the three tags above. Go refuses to
+      # build with -mod=vendor unless this matches go.mod.
+      - type: inline
+        dest: vendor
+        dest-filename: modules.txt
+        contents: |
+          # github.com/godbus/dbus/v5 v5.1.0
+          ## explicit; go 1.12
+          github.com/godbus/dbus/v5
+          # github.com/pkg/term v1.1.0
+          ## explicit; go 1.14
+          github.com/pkg/term/termios
+          # golang.org/x/sys v0.15.0
+          ## explicit; go 1.18
+          golang.org/x/sys/unix
+
   - name: claude-desktop
     buildsystem: simple
     build-commands:
@@ -81,6 +153,12 @@ modules:
       # exports them when the app is committed, not when extra-data lands.
       - install -Dm755 apply_extra "${FLATPAK_DEST}/bin/apply_extra"
       - install -Dm755 claude-desktop.sh "${FLATPAK_DEST}/bin/claude-desktop"
+      - install -Dm755 host-shell.sh "${FLATPAK_DEST}/bin/host-shell"
+      - install -Dm755 host-git.sh "${FLATPAK_DEST}/bin/host-git"
+      # /app/bin is on the search path the app builds for git, and it is the
+      # only entry on that path that has a git at all inside the sandbox.
+      - ln -sf host-git "${FLATPAK_DEST}/bin/git"
+      - ln -sf host-git "${FLATPAK_DEST}/bin/git-lfs"
       - install -Dm644 "${FLATPAK_ID}.metainfo.xml" "${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml"
       - install -Dm644 "${FLATPAK_ID}.desktop" "${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop"
       - |
@@ -109,6 +187,10 @@ modules:
 
       - type: file
         path: claude-desktop.sh
+      - type: file
+        path: host-shell.sh
+      - type: file
+        path: host-git.sh
       - type: file
         path: io.github.dewzor.ClaudeDesktop.desktop
       - type: file
