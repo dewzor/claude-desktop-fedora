@@ -1,5 +1,17 @@
 # Changelog
 
+## v9 — 2026-08-29
+
+**Official Linux build.** New primary path, `build-official.sh` — contributed by [@sharpandpearl](https://github.com/sharpandpearl) in [#4](https://github.com/dewzor/claude-desktop-fedora/pull/4).
+
+- Builds the RPM from Anthropic's official Linux x86_64 `.deb` instead of repacking the Windows installer.
+- Payload is unmodified upstream content: no `app.asar` patching, no native-module stub, no CSS, no launcher wrapper.
+- Claude Code tab works (real `@ant/claude-native` + `node-pty` ELF modules). Cowork works.
+- Chromium sandbox stays enabled; `chrome-sandbox` setuid 4755 preserved and verified post-build.
+- Debian-only `postinst` behaviour dropped (AppArmor userns profile, apt repo registration).
+- `build-fedora.sh` retained as the legacy path for 0.14.x-era builds; not maintained against current releases.
+- README rewritten around the official build.
+
 ## v8 — 2025-12-04
 
 **Root-cause titlebar fix.**

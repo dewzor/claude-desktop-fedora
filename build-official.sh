@@ -41,13 +41,13 @@ usage() {
 Usage: $0 [options]
 
   --deb PATH     Use an already-downloaded .deb instead of fetching it.
-  --outdir DIR   Where to write the finished RPM (default: ./dist).
+  --outdir DIR   Where to write the finished RPM (default: ./build/official).
   --release N    RPM release field (default: 1).
   --keep         Keep the build tree for inspection.
   -h, --help     Show this help.
 
 With no options: fetch the current official Linux build and produce an RPM
-in ./dist, then print the dnf command to install it.
+in ./build/official, then print the dnf command to install it.
 EOF
 }
 
@@ -123,9 +123,9 @@ VERSION="$(sed -n 's/^Version:[[:space:]]*//p' "$WORK/ctrl/control" | head -1)"
 VERSION="${VERSION//-/.}"
 info "version: $VERSION"
 
-# Preserve ownership and the setuid bit on chrome-sandbox by having tar write
-# the payload straight into the source tarball rpmbuild consumes, rather than
-# extracting as an unprivileged user (which would silently drop mode 4755).
+# Extracting as an unprivileged user drops the setuid bit on chrome-sandbox;
+# the spec's %attr(4755,root,root) restores it in the package metadata, and
+# the post-build check below confirms it survived.
 tar -xf "$DATA_TAR" -C "$WORK/payload"
 [ -d "$WORK/payload/usr/lib/claude-desktop" ] \
     || die "unexpected payload layout: usr/lib/claude-desktop not found"
@@ -246,7 +246,7 @@ rm -rf %{buildroot}%{_datadir}/lintian
 /usr/bin/gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 %changelog
-* $(LC_ALL=C date '+%a %b %d %Y') build-rpm.sh - $VERSION-$RELEASE
+* $(LC_ALL=C date '+%a %b %d %Y') build-official.sh - $VERSION-$RELEASE
 - Repackage Anthropic's official Linux $ARCH_RPM build $VERSION for Fedora
 SPEC
 
