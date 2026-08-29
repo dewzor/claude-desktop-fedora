@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+#
+# claude-desktop-update - keep the locally built Claude Desktop RPM current.
+#
+# Anthropic ships Claude Desktop as a .deb only, and the app is proprietary,
+# so no repository can carry it. This command does the rebuild locally. It
+# asks the official download endpoint which build is current, compares that
+# against what was built last, and only downloads anything when the answer
+# has changed.
+#
+# Run it by hand as root, or let claude-desktop-update.timer run it daily.
+#
+set -euo pipefail
+
+REDIRECT="https://claude.ai/api/desktop/linux/x64/deb/latest/redirect"
+# Cloudflare 403s requests without a browser-shaped UA.
+UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+BUILDER="/usr/libexec/claude-desktop-builder/build-official.sh"
+STATE_DIR="/var/lib/claude-desktop-builder"
+STATE_FILE="$STATE_DIR/last-build"
+OUT_DIR="$STATE_DIR/out"
+SCRATCH_DIR="/var/tmp"
+
+CHECK_ONLY=0
+FORCE=0
+
+log()  { printf '%s\n' "$*"; }
+die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+    cat <<EOF
+Usage: claude-desktop-update [options]
+
+  --check     Report whether a new build exists and do nothing else.
+              Exit 0 when up to date, exit 2 when an update is available.
+  --force     Rebuild and reinstall even when nothing changed upstream.
+  -h, --help  Show this help.
+
+With no options: rebuild and install only if upstream shipped a new build.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --check)   CHECK_ONLY=1; shift ;;
+        --force)   FORCE=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *)         die "unknown option: $1 (try --help)" ;;
+    esac
+done
+
+[ "$(id -u)" -eq 0 ] || die "must run as root (it installs an RPM)"
+[ -x "$BUILDER" ] || die "missing build script: $BUILDER"
+
+# rpmbuild wants a home directory; systemd does not always provide one.
+export HOME="${HOME:-/root}"
+# The unpacked payload is around 700 MB. The default scratch directory is
+# often a memory filesystem, which is too small, so use /var/tmp instead.
+export TMPDIR="${TMPDIR:-$SCRATCH_DIR}"
+
+# ------------------------------------------------------------- upstream ------
+# Redirect lookup only. Read the Location header and stop; nothing is
+# downloaded here.
+url="$(curl -sS -o /dev/null -w '%{redirect_url}' --max-time 30 \
+         -A "$UA" \
+         -H 'Sec-Fetch-Dest: document' \
+         -H 'Sec-Fetch-Mode: navigate' \
+         -H 'Sec-Fetch-Site: none' \
+         "$REDIRECT")" || die "could not reach $REDIRECT"
+[ -n "$url" ] || die "no redirect target returned; the download endpoint may have moved"
+
+# The filename is the upstream build identity, for example
+# Claude-f65e386db0db64c8f8b39950e25adb11f5f5e3f3.deb
+upstream_id="${url##*/}"
+[ -n "$upstream_id" ] || die "could not read a filename out of $url"
+
+# The path segment above the filename is the upstream version, when present.
+upstream_dir="${url%/*}"
+upstream_version="${upstream_dir##*/}"
+case "$upstream_version" in
+    [0-9]*.[0-9]*) ;;
+    *) upstream_version="" ;;
+esac
+
+# --------------------------------------------------------------- local -------
+if installed_version="$(rpm -q --qf '%{VERSION}' claude-desktop 2>/dev/null)"; then
+    installed=1
+else
+    installed=0
+    installed_version=""
+fi
+
+last_id=""
+if [ -r "$STATE_FILE" ]; then
+    last_id="$(head -1 "$STATE_FILE" 2>/dev/null || true)"
+fi
+
+# Up to date means: the app is installed, and either we built this exact
+# upstream file before, or the installed version already matches the version
+# upstream is serving. The second case covers a first run on a machine where
+# Claude Desktop was built by hand.
+up_to_date=0
+adopt=0
+if [ "$installed" -eq 1 ]; then
+    if [ -n "$last_id" ] && [ "$last_id" = "$upstream_id" ]; then
+        up_to_date=1
+    elif [ -n "$upstream_version" ] && [ "$installed_version" = "$upstream_version" ]; then
+        up_to_date=1
+        adopt=1
+    fi
+fi
+[ "$FORCE" -eq 1 ] && up_to_date=0
+
+describe_upstream() {
+    if [ -n "$upstream_version" ]; then
+        printf '%s (%s)' "$upstream_version" "$upstream_id"
+    else
+        printf '%s' "$upstream_id"
+    fi
+}
+
+if [ "$CHECK_ONLY" -eq 1 ]; then
+    if [ "$up_to_date" -eq 1 ]; then
+        log "up to date: claude-desktop $installed_version is the current upstream build"
+        exit 0
+    fi
+    if [ "$installed" -eq 1 ]; then
+        log "update available: installed $installed_version, upstream $(describe_upstream)"
+    else
+        log "update available: claude-desktop is not installed, upstream $(describe_upstream)"
+    fi
+    exit 2
+fi
+
+if [ "$up_to_date" -eq 1 ]; then
+    if [ "$adopt" -eq 1 ]; then
+        mkdir -p "$STATE_DIR"
+        printf '%s\n' "$upstream_id" > "$STATE_FILE"
+    fi
+    log "up to date: claude-desktop $installed_version is the current upstream build"
+    exit 0
+fi
+
+# --------------------------------------------------------------- build -------
+if [ "$installed" -eq 1 ]; then
+    log "upstream build changed: installed $installed_version, upstream $(describe_upstream)"
+else
+    log "claude-desktop is not installed; building upstream $(describe_upstream)"
+fi
+
+mkdir -p "$STATE_DIR"
+rm -rf "$OUT_DIR"
+mkdir -p "$OUT_DIR"
+
+cleanup() { rm -rf "$OUT_DIR"; }
+trap cleanup EXIT
+
+log "building (this downloads around 165 MB and takes a few minutes)"
+"$BUILDER" --outdir "$OUT_DIR" || die "build-official.sh failed"
+
+rpm_file="$(find "$OUT_DIR" -maxdepth 1 -type f -name 'claude-desktop-*.rpm' -print -quit)"
+[ -n "$rpm_file" ] || die "the build reported success but produced no RPM"
+
+log "installing $(basename "$rpm_file")"
+# Obsoletes in the built package means dnf replaces the old one in place.
+dnf install -y --allowerasing "$rpm_file" || die "dnf could not install $rpm_file"
+
+printf '%s\n' "$upstream_id" > "$STATE_FILE"
+new_version="$(rpm -q --qf '%{VERSION}' claude-desktop 2>/dev/null || echo unknown)"
+log "claude-desktop $new_version installed"

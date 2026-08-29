@@ -1,0 +1,54 @@
+.TH CLAUDE\-DESKTOP\-UPDATE 1 "2026-08-29" "claude-desktop-builder 1.0.0" "User Commands"
+.SH NAME
+claude\-desktop\-update \- rebuild and install Claude Desktop when upstream ships a new build
+.SH SYNOPSIS
+.B claude\-desktop\-update
+.RI [ options ]
+.SH DESCRIPTION
+Claude Desktop is proprietary, so no repository can ship it. This command
+builds it locally instead.
+.PP
+It asks Anthropic's download endpoint which Linux build is current, reading
+only the redirect target. If that build is already installed, it prints a
+line and exits without downloading anything. If a newer build has shipped, it
+runs
+.B /usr/libexec/claude\-desktop\-builder/build\-official.sh
+to fetch Anthropic's official .deb, repackage the payload as an RPM, and
+install that RPM with dnf. The built package carries an Obsoletes tag, so an
+older locally built package is replaced in place.
+.PP
+The command must run as root. It is normally driven by
+.BR claude\-desktop\-update.timer ,
+which fires once a day.
+.SH OPTIONS
+.TP
+.B \-\-check
+Report whether a new build exists and do nothing else.
+.TP
+.B \-\-force
+Rebuild and install even when nothing changed upstream.
+.TP
+.B \-h ", " \-\-help
+Show a short usage summary.
+.SH EXIT STATUS
+.TP
+.B 0
+Up to date, or the rebuild and install succeeded.
+.TP
+.B 2
+With \-\-check only: a new upstream build is available.
+.TP
+.B 1
+An error occurred.
+.SH FILES
+.TP
+.I /var/lib/claude\-desktop\-builder/last\-build
+The upstream filename of the build that was installed last.
+.TP
+.I /var/lib/claude\-desktop\-builder/out
+Scratch directory for the built RPM. Removed when the run finishes.
+.SH SEE ALSO
+.BR systemctl (1),
+.BR dnf (8)
+.PP
+https://github.com/dewzor/claude\-desktop\-fedora

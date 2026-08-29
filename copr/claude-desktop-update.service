@@ -1,0 +1,11 @@
+[Unit]
+Description=Rebuild and install Claude Desktop when upstream ships a new build
+Documentation=https://github.com/dewzor/claude-desktop-fedora
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/claude-desktop-update
+Environment=TMPDIR=/var/tmp
+TimeoutStartSec=3600

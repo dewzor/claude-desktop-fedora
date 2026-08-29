@@ -21,6 +21,30 @@ Launch **Claude** from your application menu, or run `claude-desktop`. The launc
 
 The build runs entirely as your own user; root is only needed for the final `dnf install`.
 
+## Auto-updates via COPR
+
+```bash
+sudo dnf copr enable dewzor/claude-desktop
+sudo dnf install claude-desktop-builder
+```
+
+`claude-desktop-builder` is a small MIT-licensed package. It does not contain Claude Desktop, and it never will. Claude Desktop is proprietary, so no repository is allowed to ship it. What the package ships is the build itself: `build-official.sh`, a `claude-desktop-update` command, and a systemd timer.
+
+The timer runs once a day. It asks Anthropic's download endpoint which Linux build is current. If that build is already installed, it stops there and downloads nothing. If a newer build has shipped, it fetches Anthropic's own `.deb` on your machine, repackages the payload as an RPM, and installs it with `dnf`. You get exactly the package `build-official.sh` produces by hand, without having to remember to run it.
+
+Run it yourself any time:
+
+```bash
+sudo claude-desktop-update --check   # says whether a new build exists
+sudo claude-desktop-update           # rebuilds and installs if there is one
+```
+
+Removing the package leaves Claude Desktop alone:
+
+```bash
+sudo dnf remove claude-desktop-builder
+```
+
 ## What works on Fedora 44
 
 | Feature | Status |
@@ -36,7 +60,7 @@ The build runs entirely as your own user; root is only needed for the final `dnf
 | System tray | Working |
 | Auto-download latest Claude | Yes, via the official redirect URL |
 | Architecture | x86_64 only (see FAQ) |
-| Auto-update | No. Re-run the build script |
+| Auto-update | Optional, via the `claude-desktop-builder` COPR package |
 
 ## How the Fedora RPM is built
 
