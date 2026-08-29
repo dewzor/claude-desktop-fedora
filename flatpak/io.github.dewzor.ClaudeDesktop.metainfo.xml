@@ -46,4 +46,14 @@
       </description>
     </release>
   </releases>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/dewzor/ClaudeDesktop/main/screenshots/code.png</image>
+      <caption>Claude Code tab running on the host through the Flatpak portal</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/dewzor/ClaudeDesktop/main/screenshots/cowork.png</image>
+      <caption>Cowork welcome screen</caption>
+    </screenshot>
+  </screenshots>
 </component>

@@ -78,7 +78,7 @@ this to `io.github.dewzor.ClaudeDesktop.metainfo.xml` just after
 ```xml
 <screenshots>
   <screenshot type="default">
-    <image>https://raw.githubusercontent.com/dewzor/ClaudeDesktop/main/screenshots/chat.png</image>
+    <image>https://raw.githubusercontent.com/dewzor/ClaudeDesktop/main/screenshots/code.png</image>
     <caption>Chatting with Claude</caption>
   </screenshot>
   <screenshot>
