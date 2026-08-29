@@ -163,7 +163,7 @@ rpm_file="$(find "$OUT_DIR" -maxdepth 1 -type f -name 'claude-desktop-*.rpm' -pr
 
 log "installing $(basename "$rpm_file")"
 # Obsoletes in the built package means dnf replaces the old one in place.
-dnf install -y --allowerasing "$rpm_file" || die "dnf could not install $rpm_file"
+dnf install -y "$rpm_file" || die "dnf could not install $rpm_file"
 
 printf '%s\n' "$upstream_id" > "$STATE_FILE"
 new_version="$(rpm -q --qf '%{VERSION}' claude-desktop 2>/dev/null || echo unknown)"
