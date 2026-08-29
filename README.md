@@ -6,8 +6,6 @@ Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's 
 
 > Unofficial packaging. Anthropic ships the app; this repo only rewraps it for `dnf`. If you hit a packaging bug, open an issue here — don't bug Anthropic about it.
 
-![Claude Desktop on Fedora 44 KDE Plasma with MCP servers connected](https://github.com/user-attachments/assets/93080028-6f71-48bd-8e59-5149d148cd45)
-
 ## Install Claude Desktop on Fedora 44
 
 ```bash
