@@ -45,6 +45,42 @@ Removing the package leaves Claude Desktop alone:
 sudo dnf remove claude-desktop-builder
 ```
 
+## Flatpak
+
+There is a Flatpak manifest in `flatpak/`. It builds Claude Desktop for any distro
+that runs Flatpak, not just Fedora.
+
+```bash
+cd flatpak
+./build.sh
+flatpak run io.github.dewzor.ClaudeDesktop
+```
+
+The build itself is small. The application is an `extra-data` source, so Flatpak
+downloads Anthropic's official `.deb` on your machine at install time and unpacks it
+there. Nothing proprietary is redistributed. That is the same approach Flathub uses
+for Spotify and Slack.
+
+Flathub submission is pending. `flatpak/FLATHUB-SUBMISSION.md` has the steps and the
+three things that still need a human: a repo named to match the app ID, screenshots,
+and a reviewer exception for home directory access.
+
+The sandbox trade-off, in short. The RPM keeps Chromium's setuid sandbox and otherwise
+runs with your full user rights; the Flatpak drops the setuid helper and sandboxes the
+renderers with zypak instead, which works and needs no `--no-sandbox`. In exchange the
+whole app runs inside the Flatpak sandbox, and because Claude Code and Cowork open
+files you never clicked, the manifest asks for `--filesystem=home`, so the sandbox
+protects your system but not your home directory.
+
+Two things behave differently from the RPM. MCP servers that call a program on your
+host, `npx` for example, will not find it inside the sandbox. Claude Desktop keeps its
+config and logs at `~/.var/app/io.github.dewzor.ClaudeDesktop/config/Claude/` instead
+of `~/.config/Claude/`, so the two installs do not share a login.
+
+The manifest follows [gordonmessmer's com.anthropic.Claude](https://github.com/gordonmessmer/com.anthropic.Claude),
+which worked out the finish args and the zypak launcher. His version bundles the payload
+at build time. This one uses `extra-data` so it can go to Flathub.
+
 ## What works on Fedora 44
 
 | Feature | Status |
@@ -200,6 +236,7 @@ sudo dnf remove claude-desktop
 
 - [@sharpandpearl](https://github.com/sharpandpearl): `build-official.sh` and the analysis of why the Windows repack stopped working ([#4](https://github.com/dewzor/claude-desktop-fedora/pull/4)).
 - [@randy-johnson](https://github.com/randy-johnson): `titleBarOverlay` regex fix on the legacy script ([#3](https://github.com/dewzor/claude-desktop-fedora/pull/3)).
+- [@gordonmessmer](https://github.com/gordonmessmer): the [com.anthropic.Claude](https://github.com/gordonmessmer/com.anthropic.Claude) Flatpak manifest that the one in `flatpak/` is based on.
 
 ## License
 
