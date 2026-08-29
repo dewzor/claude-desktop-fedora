@@ -81,8 +81,9 @@ finish-args:
   # sandbox holding none of the user's tools and none of the hooks in their
   # repositories. This portal name lets the app run those commands on the host.
   # It is the same permission the VS Code, VSCodium and JetBrains Flatpaks carry
-  # on Flathub, for the same reason. It applies to the Claude Code terminal and
-  # to git; the rest of the app stays inside the sandbox.
+  # on Flathub, for the same reason. It applies to the Claude Code terminal, to
+  # the agent's own shell commands, and to git; the rest of the app stays inside
+  # the sandbox.
   - --talk-name=org.freedesktop.Flatpak
 
   # Use the host cursor theme instead of the runtime's default.
@@ -154,6 +155,7 @@ modules:
       - install -Dm755 apply_extra "${FLATPAK_DEST}/bin/apply_extra"
       - install -Dm755 claude-desktop.sh "${FLATPAK_DEST}/bin/claude-desktop"
       - install -Dm755 host-shell.sh "${FLATPAK_DEST}/bin/host-shell"
+      - install -Dm755 host-exec.sh "${FLATPAK_DEST}/bin/host-exec"
       - install -Dm755 host-git.sh "${FLATPAK_DEST}/bin/host-git"
       # /app/bin is on the search path the app builds for git, and it is the
       # only entry on that path that has a git at all inside the sandbox.
@@ -189,6 +191,8 @@ modules:
         path: claude-desktop.sh
       - type: file
         path: host-shell.sh
+      - type: file
+        path: host-exec.sh
       - type: file
         path: host-git.sh
       - type: file

@@ -121,14 +121,22 @@ freedesktop runtime. Bundling git would not fix this. It would silence the app's
 git check while every command still ran against a sandbox holding none of the
 user's tools and none of the hooks in their repositories.
 
-The manifest uses it in two narrow places, both visible in `claude-desktop.sh`,
-`host-shell.sh` and `host-git.sh`:
+The manifest uses it in three narrow places, all visible in `claude-desktop.sh`,
+`host-shell.sh`, `host-exec.sh` and `host-git.sh`:
 
 - `$SHELL` points at `/app/bin/host-shell`, so the two places the app reads it
   land on the host: the worker that resolves the login-shell environment, and
   the Claude Code terminal.
+- `$CLAUDE_CODE_SHELL_PREFIX` points at `/app/bin/host-exec`. The agent picks
+  its own shell by name and only accepts a path containing bash or zsh, so
+  `$SHELL` never reaches it. It does wrap every Bash tool command in this
+  prefix, so the prefix is what puts the agent's own commands on the host.
 - `/app/bin/git` and `/app/bin/git-lfs` are symlinks to a wrapper that runs the
   host's git.
+
+All three are set only after the launcher has probed the portal. If the portal
+does not answer, none of them is set and the app falls back to its old
+sandbox-only behaviour.
 
 Say in the PR that this is the same permission the VS Code, VSCodium and
 JetBrains Flatpaks carry, granted for the same reason, and that it is what makes
@@ -181,6 +189,7 @@ io.github.dewzor.ClaudeDesktop.metainfo.xml
 io.github.dewzor.ClaudeDesktop.desktop
 claude-desktop.sh
 host-shell.sh
+host-exec.sh
 host-git.sh
 icons/claude-desktop-16.png
 icons/claude-desktop-32.png
@@ -247,11 +256,13 @@ the description part:
 > `--talk-name=org.freedesktop.Flatpak`: Claude Code is a coding agent. Its
 > sessions run git, and then whatever the project builds with. None of that is in
 > the runtime. Bundling git would only silence the app's git check while every
-> command still ran against a toolless sandbox. The app uses the portal in two
-> places: `$SHELL` points at a wrapper that runs the user's host shell, and
-> `/app/bin/git` is a wrapper that runs the host's git. The helper is host-spawn
-> (MIT), built from source with vendored dependencies. This is the same
-> permission the VS Code, VSCodium and JetBrains Flatpaks carry.
+> command still ran against a toolless sandbox. The app uses the portal in three
+> places: `$SHELL` points at a wrapper that runs the user's host shell,
+> `$CLAUDE_CODE_SHELL_PREFIX` points at a wrapper that runs the agent's own
+> commands on the host, and `/app/bin/git` is a wrapper that runs the host's
+> git. The helper is host-spawn (MIT), built from source with vendored
+> dependencies. This is the same permission the VS Code, VSCodium and JetBrains
+> Flatpaks carry.
 >
 > Everything else is narrow: no `--socket=session-bus`, no `--device=all`.
 > `--device=kvm` is there because Cowork can run tasks in a VM; without it that

@@ -67,7 +67,8 @@ reviewer exceptions for home directory access and for running commands on the ho
 
 The Code tab runs on the host through the Flatpak portal, the same way the VS Code
 Flatpak does it. Your shell, your `PATH`, your git and your project tools are the real
-ones, not the runtime's.
+ones, not the runtime's. The commands the agent runs by itself go the same way, through
+`CLAUDE_CODE_SHELL_PREFIX`.
 
 The sandbox trade-off, in short. The RPM keeps Chromium's setuid sandbox and otherwise
 runs with your full user rights; the Flatpak drops the setuid helper and sandboxes the
