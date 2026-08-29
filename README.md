@@ -47,46 +47,7 @@ sudo dnf remove claude-desktop-builder
 
 ## Flatpak
 
-There is a Flatpak manifest in `flatpak/`. It builds Claude Desktop for any distro
-that runs Flatpak, not just Fedora.
-
-```bash
-cd flatpak
-./build.sh
-flatpak run io.github.dewzor.ClaudeDesktop
-```
-
-The build itself is small. The application is an `extra-data` source, so Flatpak
-downloads Anthropic's official `.deb` on your machine at install time and unpacks it
-there. Nothing proprietary is redistributed. That is the same approach Flathub uses
-for Spotify and Slack.
-
-Flathub submission is pending. `flatpak/FLATHUB-SUBMISSION.md` has the steps and the
-four things that still need a human: a repo named to match the app ID, screenshots, and
-reviewer exceptions for home directory access and for running commands on the host.
-
-The Code tab runs on the host through the Flatpak portal, the same way the VS Code
-Flatpak does it. Your shell, your `PATH`, your git and your project tools are the real
-ones, not the runtime's. The commands the agent runs by itself go the same way, through
-`CLAUDE_CODE_SHELL_PREFIX`.
-
-The sandbox trade-off, in short. The RPM keeps Chromium's setuid sandbox and otherwise
-runs with your full user rights; the Flatpak drops the setuid helper and sandboxes the
-renderers with zypak instead, which works and needs no `--no-sandbox`. In exchange the
-whole app runs inside the Flatpak sandbox, and because Claude Code and Cowork open
-files you never clicked, the manifest asks for `--filesystem=home`, so the sandbox
-protects your system but not your home directory. `--talk-name=org.freedesktop.Flatpak`
-is the second broad permission, and it is what lets the Code tab reach the host.
-
-Two things behave differently from the RPM. MCP servers are started by the app itself
-rather than through your shell, so one that calls `npx` may still not find it. Claude
-Desktop keeps its config and logs at
-`~/.var/app/io.github.dewzor.ClaudeDesktop/config/Claude/` instead of `~/.config/Claude/`,
-so the two installs do not share a login.
-
-The manifest follows [gordonmessmer's com.anthropic.Claude](https://github.com/gordonmessmer/com.anthropic.Claude),
-which worked out the finish args and the zypak launcher. His version bundles the payload
-at build time. This one uses `extra-data` so it can go to Flathub.
+There is a Flatpak too, for any distro. The manifest lives in its own repo, https://github.com/dewzor/ClaudeDesktop, and is submitted to Flathub (https://github.com/flathub/flathub/pull/9971). Until Flathub accepts it, build it yourself with the commands in that repo's README. Inside the Flatpak, Claude Code runs on the host through the Flatpak portal, so it sees your real git, node and python. The manifest started from gordonmessmer's com.anthropic.Claude and switched to extra-data so it can be hosted on Flathub.
 
 ## What works on Fedora 44
 
