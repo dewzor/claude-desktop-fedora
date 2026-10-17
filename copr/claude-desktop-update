@@ -4,17 +4,14 @@
 #
 # Anthropic ships Claude Desktop as a .deb only, and the app is proprietary,
 # so no repository can carry it. This command does the rebuild locally. It
-# asks the official download endpoint which build is current, compares that
-# against what was built last, and only downloads anything when the answer
-# has changed.
+# asks Anthropic's signed apt index which build is current (the build script
+# verifies the signature), compares that against what is installed, and only
+# downloads anything when the answer has changed.
 #
 # Run it by hand as root, or let claude-desktop-update.timer run it daily.
 #
 set -euo pipefail
 
-REDIRECT="https://claude.ai/api/desktop/linux/x64/deb/latest/redirect"
-# Cloudflare 403s requests without a browser-shaped UA.
-UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
 BUILDER="/usr/libexec/claude-desktop-builder/build-official.sh"
 STATE_DIR="/var/lib/claude-desktop-builder"
 STATE_FILE="$STATE_DIR/last-build"
@@ -59,28 +56,15 @@ export HOME="${HOME:-/root}"
 export TMPDIR="${TMPDIR:-$SCRATCH_DIR}"
 
 # ------------------------------------------------------------- upstream ------
-# Redirect lookup only. Read the Location header and stop; nothing is
-# downloaded here.
-url="$(curl -sS -o /dev/null -w '%{redirect_url}' --max-time 30 \
-         -A "$UA" \
-         -H 'Sec-Fetch-Dest: document' \
-         -H 'Sec-Fetch-Mode: navigate' \
-         -H 'Sec-Fetch-Site: none' \
-         "$REDIRECT")" || die "could not reach $REDIRECT"
-[ -n "$url" ] || die "no redirect target returned; the download endpoint may have moved"
-
-# The filename is the upstream build identity, for example
-# Claude-f65e386db0db64c8f8b39950e25adb11f5f5e3f3.deb
-upstream_id="${url##*/}"
-[ -n "$upstream_id" ] || die "could not read a filename out of $url"
-
-# The path segment above the filename is the upstream version, when present.
-upstream_dir="${url%/*}"
-upstream_version="${upstream_dir##*/}"
-case "$upstream_version" in
-    [0-9]*.[0-9]*) ;;
-    *) upstream_version="" ;;
-esac
+# Index lookup only: the build script verifies the signed apt index and
+# prints the newest entry. Nothing large is downloaded here.
+latest="$("$BUILDER" --print-latest)" || die "could not read Anthropic's signed apt index"
+read -r upstream_version upstream_sha256 upstream_file <<<"$latest"
+[ -n "$upstream_sha256" ] || die "unexpected output from $BUILDER --print-latest: $latest"
+# The .deb's SHA256 is the upstream build identity. RPM versions cannot
+# contain '-', and the build script maps it to '.', so compare the same way.
+upstream_id="$upstream_sha256"
+upstream_version="${upstream_version//-/.}"
 
 # --------------------------------------------------------------- local -------
 if installed_version="$(rpm -q --qf '%{VERSION}' claude-desktop 2>/dev/null)"; then
@@ -112,11 +96,7 @@ fi
 [ "$FORCE" -eq 1 ] && up_to_date=0
 
 describe_upstream() {
-    if [ -n "$upstream_version" ]; then
-        printf '%s (%s)' "$upstream_version" "$upstream_id"
-    else
-        printf '%s' "$upstream_id"
-    fi
+    printf '%s (%s)' "$upstream_version" "$upstream_file"
 }
 
 if [ "$CHECK_ONLY" -eq 1 ]; then

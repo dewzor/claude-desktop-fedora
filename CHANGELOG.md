@@ -1,5 +1,16 @@
 # Changelog
 
+## v9.2 (2026-10-16)
+
+**Verified downloads, full desktop integration.**
+
+- `build-official.sh` now downloads the `.deb` from Anthropic's signed apt repository instead of the `claude.ai` redirect. It checks the `InRelease` signature against Anthropic's release key, which the script pins by fingerprint. It refuses an index past its `Valid-Until` date. It checks the `Packages` index and the `.deb` against the signed SHA256s, and checks that the package version matches the index. The apt repository doesn't need the browser-shaped User-Agent, so that's gone.
+- `--print-latest` verifies the index and prints the newest version without downloading anything.
+- `claude-desktop-update` finds the current build through `--print-latest`, so the daily timer only installs builds that pass the signature check.
+- The RPM now packages three things the upstream `postinst` copies in at install time: the GNOME Shell search provider, which puts "Ask Claude" in Activities search; the MIME types for `.mcpb`/`.dxt` extensions and `.skill` files; and the `ccd` launcher link, when the build ships it.
+- The RPM now also recommends the rest of the `.deb`'s Recommends: `bubblewrap`, `socat`, `openssh-clients`, `pipewire-libs`, and `gjs`, which runs the search provider.
+- `claude-desktop-builder` 1.0.2 on COPR, which now requires `gnupg2`.
+
 ## v9.1 (2026-10-16)
 
 **Faster RPM step.** Started by [@itsnitinr](https://github.com/itsnitinr) in [#5](https://github.com/dewzor/claude-desktop-fedora/pull/5).

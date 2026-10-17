@@ -1,4 +1,4 @@
-.TH CLAUDE\-DESKTOP\-UPDATE 1 "2026-08-29" "claude-desktop-builder 1.0.0" "User Commands"
+.TH CLAUDE\-DESKTOP\-UPDATE 1 "2026-10-16" "claude-desktop-builder 1.0.2" "User Commands"
 .SH NAME
 claude\-desktop\-update \- rebuild and install Claude Desktop when upstream ships a new build
 .SH SYNOPSIS
@@ -8,13 +8,14 @@ claude\-desktop\-update \- rebuild and install Claude Desktop when upstream ship
 Claude Desktop is proprietary, so no repository can ship it. This command
 builds it locally instead.
 .PP
-It asks Anthropic's download endpoint which Linux build is current, reading
-only the redirect target. If that build is already installed, it prints a
-line and exits without downloading anything. If a newer build has shipped, it
-runs
+It asks Anthropic's signed apt index which Linux build is current, through
+.BR "build\-official.sh \-\-print\-latest" ,
+which checks the index signature against Anthropic's pinned release key. If
+that build is already installed, it prints a line and exits without
+downloading anything. If a newer build has shipped, it runs
 .B /usr/libexec/claude\-desktop\-builder/build\-official.sh
-to fetch Anthropic's official .deb, repackage the payload as an RPM, and
-install that RPM with dnf. The built package carries an Obsoletes tag, so an
+to fetch Anthropic's official .deb, verify its SHA256 against the signed
+index, repackage the payload as an RPM, and install that RPM with dnf. The built package carries an Obsoletes tag, so an
 older locally built package is replaced in place.
 .PP
 The command must run as root. It is normally driven by
@@ -43,7 +44,7 @@ An error occurred.
 .SH FILES
 .TP
 .I /var/lib/claude\-desktop\-builder/last\-build
-The upstream filename of the build that was installed last.
+The SHA256 of the upstream .deb that was installed last.
 .TP
 .I /var/lib/claude\-desktop\-builder/out
 Scratch directory for the built RPM. Removed when the run finishes.

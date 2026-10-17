@@ -9,7 +9,7 @@ Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's 
 ## Install Claude Desktop on Fedora 44
 
 ```bash
-sudo dnf install rpm-build binutils file xz curl
+sudo dnf install rpm-build binutils file xz curl gnupg2
 
 git clone https://github.com/dewzor/claude-desktop-fedora.git
 cd claude-desktop-fedora
@@ -30,7 +30,7 @@ sudo dnf install claude-desktop-builder
 
 `claude-desktop-builder` is a small MIT-licensed package. It does not contain Claude Desktop, and it never will. Claude Desktop is proprietary, so no repository is allowed to ship it. What the package ships is the build itself: `build-official.sh`, a `claude-desktop-update` command, and a systemd timer.
 
-The timer runs once a day. It asks Anthropic's download endpoint which Linux build is current. If that build is already installed, it stops there and downloads nothing. If a newer build has shipped, it fetches Anthropic's own `.deb` on your machine, repackages the payload as an RPM, and installs it with `dnf`. You get exactly the package `build-official.sh` produces by hand, without having to remember to run it.
+The timer runs once a day. It asks Anthropic's signed apt index which Linux build is current, and checks the signature against Anthropic's release key. If that build is already installed, it stops there and downloads nothing. If a newer build has shipped, it fetches Anthropic's own `.deb` on your machine, repackages the payload as an RPM, and installs it with `dnf`. You get exactly the package `build-official.sh` produces by hand, without having to remember to run it.
 
 Run it yourself any time:
 
@@ -62,7 +62,9 @@ There is a Flatpak too, for any distro. The manifest lives in its own repo, http
 | Native window frame | Yes, no patching needed |
 | Chromium sandbox | Enabled (`chrome-sandbox` setuid 4755, no `--no-sandbox`) |
 | System tray | Working |
-| Auto-download latest Claude | Yes, via the official redirect URL |
+| GNOME Activities search ("Ask Claude") | Working |
+| Open `.mcpb`, `.dxt` and `.skill` files in Claude | Working |
+| Auto-download latest Claude | Yes, from Anthropic's signed apt repository |
 | Architecture | x86_64 only (see FAQ) |
 | Auto-update | Optional, via the `claude-desktop-builder` COPR package |
 
@@ -72,14 +74,22 @@ Anthropic publishes an official Linux build of Claude Desktop, but only as a `.d
 
 `build-official.sh`:
 
-1. Resolves and downloads the current official `.deb` from `https://claude.ai/api/desktop/linux/x64/deb/latest/redirect` (~165 MB; browser-shaped UA to satisfy Cloudflare)
-2. Unpacks it and reads the version from the control file
-3. Verifies that `@ant/claude-native` and `node-pty` are real ELF x86-64 objects, and fails loudly if not
-4. Maps the Debian dependencies to Fedora package names
-5. Builds an RPM with `rpmbuild`, preserving `chrome-sandbox` setuid via `%attr(4755,root,root)`
-6. Confirms the setuid bit survived into the package metadata
+1. Fetches the `InRelease` index of Anthropic's apt repository and checks its signature against Anthropic's release key. The script pins the key by fingerprint, `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE`, the one in the Claude Code setup docs. It refuses an index past its `Valid-Until` date, so nobody can replay an old one
+2. Checks the `Packages` index against the SHA256 in the signed index and picks the newest `claude-desktop` entry
+3. Downloads that `.deb`, about 175 MB, and checks it against the SHA256 in the signed index
+4. Unpacks it and checks that the control file's version matches the signed index
+5. Verifies that `@ant/claude-native` and `node-pty` are real ELF x86-64 objects, and fails loudly if not
+6. Maps the Debian dependencies to Fedora package names
+7. Builds an RPM with `rpmbuild`, preserving `chrome-sandbox` setuid via `%attr(4755,root,root)`
+8. Confirms the setuid bit survived into the package metadata
 
 The payload is **unmodified upstream content**. No `app.asar` patching, no stubs, no injected CSS, no launcher wrapper.
+
+At install time the upstream `postinst` also copies three things out of `resources/`. It has to, because electron-installer-debian, which builds the `.deb`, can't ship extra files. The RPM packages them as ordinary files, so `dnf remove` cleans them up:
+
+- the GNOME Shell search provider, `com.anthropic.Claude.search-provider.ini` plus its D-Bus service, which adds an "Ask Claude" result to Activities search
+- the MIME types for `.mcpb`/`.dxt` desktop extensions and `.skill` files, so they open in Claude
+- the `/usr/bin/ccd` launcher link, when the build ships `resources/bin/ccd`
 
 Two Debian-specific `postinst` behaviours are intentionally dropped:
 
@@ -89,10 +99,12 @@ Two Debian-specific `postinst` behaviours are intentionally dropped:
 ### Options
 
 ```
---deb PATH     Use an already-downloaded .deb instead of fetching it.
+--deb PATH     Use an already-downloaded .deb instead of fetching it. Skips verification.
 --outdir DIR   Where to write the finished RPM (default: ./build/official).
 --release N    RPM release field (default: 1).
 --keep         Keep the build tree for inspection.
+--print-latest Verify the signed index, print "VERSION SHA256 FILENAME" for the
+               newest build, and exit without downloading it.
 ```
 
 ## Updating Claude Desktop on Fedora
@@ -145,8 +157,11 @@ Claude Code's terminal needs `node-pty`'s `prebuilds/linux-x64/pty.node`. Window
 ### `⚠ titleBarStyle pattern not found` during `build-fedora.sh`
 The legacy script's titlebar `sed` no longer matches current releases. It's harmless but it's also a sign you're on the wrong path. The official build already draws a correct native frame. Use `build-official.sh`.
 
-### Build fails with HTTP 403 / Cloudflare page
-Anthropic's download endpoint sits behind Cloudflare and rejects non-browser user agents. `build-official.sh` sends a browser-shaped UA. If it still fails, download the `.deb` in a browser and pass `--deb PATH`.
+### `InRelease is not signed by Anthropic's release key` / `signature check failed`
+The apt index didn't verify against the pinned key. Don't work around this with `--deb`. Check https://code.claude.com/docs/en/desktop-linux and the key at https://downloads.claude.ai/claude-desktop/key.asc for a key change, and open an issue.
+
+### `the signed index expired`
+The index is past its `Valid-Until` date, which Anthropic sets a week after signing it. Either the repository hasn't been re-signed in that time, or your system clock is wrong. Check the clock first.
 
 ### `'--ozone-platform=wayland' is not compatible with Vulkan`
 Chromium noise on Wayland sessions. Cosmetic; ignore.
@@ -187,13 +202,10 @@ Yes. Cowork's optional full-VM sandbox needs `qemu-system-x86`, `edk2-ovmf` and 
 Yes. Config lives at `~/.config/Claude/claude_desktop_config.json`.
 
 ### Why x86_64 only?
-Anthropic's direct-download endpoint only serves x86_64. An `aarch64` build exists in their apt repo; if you need it, fetch that `.deb` yourself and pass it in with `--deb PATH` (the script currently refuses non-x86_64 hosts, patches welcome).
+The script only builds for x86_64 for now. An `arm64` build exists in Anthropic's apt repo; if you need it, fetch that `.deb` yourself and pass it in with `--deb PATH` (the script currently refuses non-x86_64 hosts, patches welcome).
 
 ### I see a Wayland/Vulkan warning in the logs
 `'--ozone-platform=wayland' is not compatible with Vulkan` is Chromium noise. It's cosmetic.
-
-### The build fails with a Cloudflare 403
-The script sends a browser-shaped User-Agent and `Sec-Fetch-*` headers to get past Cloudflare. If Anthropic changes the endpoint, download the `.deb` in a browser and use `--deb PATH`.
 
 ### How do I uninstall Claude Desktop from Fedora?
 ```bash
