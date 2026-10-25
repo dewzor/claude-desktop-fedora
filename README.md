@@ -1,6 +1,6 @@
 # Claude Desktop for Fedora 44
 
-Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's **official Linux x86_64 build**. Unmodified upstream payload, Chromium sandbox on, Claude Code and Cowork working. Tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland); should work on Fedora 43 and later.
+Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's **official Linux x86_64 build**. Unmodified upstream payload, Chromium sandbox on, Claude Code and Cowork working. Tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland), and on Fedora 43 with Xfce (X11).
 
 **TL;DR:** `./build-official.sh && sudo dnf install build/official/claude-desktop-*.rpm`
 
@@ -51,6 +51,7 @@ sudo dnf remove claude-desktop-builder
 | --- | --- |
 | Fedora 44, KDE Plasma (Wayland) | Tested |
 | Fedora 44, GNOME (Wayland) | Tested |
+| Fedora 43, Xfce (X11) | Tested |
 | Claude Code tab (integrated terminal) | Working |
 | Cowork | Working |
 | MCP (Model Context Protocol) | Working |
@@ -189,7 +190,9 @@ Known limits on current releases: the Claude Code tab doesn't work (see above), 
 Yes, tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland).
 
 ### Does it work on Fedora 43 or older?
-It should. The payload is self-contained (bundled Electron), so the only real constraint is the runtime dependency list, which resolves on 43. Not actively tested. If you try it, open an issue with what you see.
+Fedora 43 works: tested with Xfce (X11) on build 3.6556.2. The build, the install and the Claude Code tab work unchanged. On Xfce the main window has no window manager frame, because the app draws its own title bar.
+
+Older releases are untested. The payload is self-contained (bundled Electron), so the only real constraint is the runtime dependency list. If you try it, open an issue with what you see.
 
 ### Does the Claude Code tab work?
 Yes. That's the whole point of the official-build path. Look for `[CCD] Initialized` in `~/.config/Claude/logs/main.log`.
