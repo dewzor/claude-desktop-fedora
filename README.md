@@ -1,6 +1,6 @@
 # Claude Desktop for Fedora 44
 
-Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's **official Linux x86_64 build**. Unmodified upstream payload, Chromium sandbox on, Claude Code and Cowork working. Tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland), and on Fedora 43 with Xfce (X11).
+Install **Claude Desktop on Fedora 44** as a native RPM, built from Anthropic's **official Linux x86_64 build**. Unmodified upstream payload, Chromium sandbox on, Claude Code and Cowork working. Tested on Fedora 44 with KDE Plasma (Wayland) and GNOME (Wayland), on Fedora 43 with Xfce (X11), and builds and installs on Fedora 45.
 
 **TL;DR:** `./build-official.sh && sudo dnf install build/official/claude-desktop-*.rpm`
 
@@ -52,6 +52,7 @@ sudo dnf remove claude-desktop-builder
 | Fedora 44, KDE Plasma (Wayland) | Tested |
 | Fedora 44, GNOME (Wayland) | Tested |
 | Fedora 43, Xfce (X11) | Tested |
+| Fedora 45 | Builds and installs |
 | Claude Code tab (integrated terminal) | Working |
 | Cowork | Working |
 | MCP (Model Context Protocol) | Working |
@@ -168,6 +169,15 @@ Chromium noise on Wayland sessions. Cosmetic; ignore.
 
 ### Cowork says the VM sandbox is unavailable
 Install the optional VM stack: `sudo dnf install qemu-system-x86 edk2-ovmf virtiofsd`. The RPM lists these as `Suggests:`.
+
+### Ctrl+Alt+Space does nothing on KDE Plasma (Wayland)
+Seen with 5.1231.x and later. The Chromium inside the app sees the shortcut KDE saved on an earlier run and skips registering it again, so KDE leaves it switched off. Chromium fixed this in October 2026; the fix should reach Claude Desktop once it moves to Electron 46. Until then, clear KDE's stale entry and start Claude:
+
+```bash
+qdbus-qt6 org.kde.kglobalaccel /component/com_anthropic_Claude org.kde.kglobalaccel.Component.cleanUp
+```
+
+KDE saves the entry again, so it can come back on the next launch. Running the command before each start keeps it working; this also resets the key to Ctrl+Alt+Space if you changed it in KDE settings. Details and a wrapper in [#11](https://github.com/dewzor/claude-desktop-fedora/issues/11).
 
 ### Package conflicts with `claude-desktop-unofficial`
 That's [aaddrick/claude-desktop-debian](https://github.com/aaddrick/claude-desktop-debian)'s RPM, which adds a launcher wrapper and a `--doctor`. Both packages share `~/.config/Claude`, so run one or the other, not both.
