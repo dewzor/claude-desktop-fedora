@@ -344,6 +344,10 @@ elif [ -x "$WORK/payload/$RES/bin/ccd" ]; then
     ln -s ../lib/claude-desktop/resources/bin/ccd "$WORK/payload/usr/bin/ccd"
     EXTRA_FILES+="/usr/bin/ccd"$'\n'
 fi
+# Newer payloads (6.28899.x and later) also ship a legacy pixmaps icon.
+if [ -f "$WORK/payload/usr/share/pixmaps/claude-desktop.png" ]; then
+    EXTRA_FILES+="/usr/share/pixmaps/claude-desktop.png"$'\n'
+fi
 
 # ------------------------------------------------------------ rpm build ------
 RB="$WORK/rpmbuild"
