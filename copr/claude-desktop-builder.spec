@@ -1,5 +1,5 @@
 Name:           claude-desktop-builder
-Version:        1.0.3
+Version:        1.0.4
 Release:        1%{?dist}
 Summary:        Builds and updates Claude Desktop for Fedora from the official upstream build
 
@@ -84,6 +84,10 @@ fi
 %dir %{_sharedstatedir}/%{name}
 
 %changelog
+* Sat Nov 21 2026 dewzor <16418668+dewzor@users.noreply.github.com> - 1.0.4-1
+- Package the pixmaps icon that Claude Desktop 6.28899.x ships, so the
+  build and the daily update work again (#12)
+
 * Thu Oct 22 2026 Anıl Sürmeli <126188687+anilsrml@users.noreply.github.com> - 1.0.3-1
 - Run build-official.sh under C.UTF-8 so its checks pass in every locale;
   locales with Turkish-style i/I failed the Filename check and legacy CJK

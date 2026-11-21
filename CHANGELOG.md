@@ -1,5 +1,15 @@
 # Changelog
 
+## v9.4 (2026-11-21)
+
+**Claude Desktop 6.28899.2 builds again, and Fedora 45 is supported.** Build fix by [@sin4ch](https://github.com/sin4ch) in [#12](https://github.com/dewzor/claude-desktop-fedora/pull/12).
+
+- Claude Desktop 6.28899.2 ships a new icon, `/usr/share/pixmaps/claude-desktop.png`, and `rpmbuild` stopped with "Installed (but unpackaged) file(s) found". The daily `claude-desktop-update` timer failed the same way, so installs stayed on 5.11492.5. The RPM now packages the icon when the payload has it; older payloads still build.
+- Fedora 45: the COPR project now builds `claude-desktop-builder` for it, so `dnf` no longer gets a 404 ([#10](https://github.com/dewzor/claude-desktop-fedora/issues/10)). Tested in a clean Fedora 45 container.
+- Fedora 43 with Xfce (X11) tested by [@antoine79](https://github.com/antoine79) in [#9](https://github.com/dewzor/claude-desktop-fedora/pull/9).
+- Troubleshooting: a workaround for Ctrl+Alt+Space not working on KDE Plasma Wayland ([#11](https://github.com/dewzor/claude-desktop-fedora/issues/11)).
+- `claude-desktop-builder` 1.0.4 on COPR.
+
 ## v9.3 (2026-10-22)
 
 **Your locale no longer matters.** Reported and fixed by [@anilsrml](https://github.com/anilsrml) in [#7](https://github.com/dewzor/claude-desktop-fedora/issues/7) and [#8](https://github.com/dewzor/claude-desktop-fedora/pull/8).
