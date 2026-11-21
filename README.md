@@ -78,8 +78,9 @@ Anthropic publishes an official Linux build of Claude Desktop, but only as a `.d
 4. Unpacks it and checks that the control file's version matches the signed index
 5. Verifies that `@ant/claude-native` and `node-pty` are real ELF x86-64 objects, and fails loudly if not
 6. Maps the Debian dependencies to Fedora package names
-7. Builds an RPM with `rpmbuild`, preserving `chrome-sandbox` setuid via `%attr(4755,root,root)`
-8. Confirms the setuid bit survived into the package metadata
+7. Adds new files and symlinks under `/usr/share/` to the package and warns about each one. It skips Debian lintian metadata and stops on unknown files elsewhere or names it cannot safely add.
+8. Builds an RPM with `rpmbuild`, preserving `chrome-sandbox` setuid via `%attr(4755,root,root)`
+9. Confirms the setuid bit survived into the package metadata
 
 The payload is **unmodified upstream content**. No `app.asar` patching, no stubs, no injected CSS, no launcher wrapper.
 
@@ -160,6 +161,7 @@ The apt index didn't verify against the pinned key, or it was signed with an exp
 
 ### The daily update stopped working
 Run `journalctl -u claude-desktop-update.service` to see the last error. Every check fails closed: nothing is installed and the old version keeps working until the next run succeeds.
+If the error says `cannot package these upstream files`, include the listed paths when you [open an issue](https://github.com/dewzor/claude-desktop-fedora/issues).
 
 ### `the signed index expired`
 The index is past its `Valid-Until` date, which Anthropic sets a week after signing it. Either the repository hasn't been re-signed in that time, or your system clock is wrong. Check the clock first.

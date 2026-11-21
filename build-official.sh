@@ -311,7 +311,17 @@ for m in "$NATIVE" "$PTY"; do
 done
 info "native modules verified as Linux x86-64 (claude-native, node-pty)"
 
-DESKTOP_FILE="$(cd "$WORK/payload/usr/share/applications" && ls -1 *.desktop 2>/dev/null | head -1)"
+# Prefer the usual launcher even if upstream adds a second desktop entry.
+DESKTOP_FILE="com.anthropic.Claude.desktop"
+APPLICATIONS="$WORK/payload/usr/share/applications"
+if [ ! -f "$APPLICATIONS/$DESKTOP_FILE" ] && [ ! -L "$APPLICATIONS/$DESKTOP_FILE" ]; then
+    DESKTOP_FILE=""
+    for desktop in "$APPLICATIONS/"*.desktop; do
+        [ -f "$desktop" ] || [ -L "$desktop" ] || continue
+        DESKTOP_FILE="${desktop##*/}"
+        break
+    done
+fi
 [ -n "$DESKTOP_FILE" ] || die "no .desktop file in the payload"
 
 # Upstream's postinst copies these out of resources/ at install time, only
@@ -345,8 +355,62 @@ elif [ -x "$WORK/payload/$RES/bin/ccd" ]; then
     EXTRA_FILES+="/usr/bin/ccd"$'\n'
 fi
 # Newer payloads (6.28899.x and later) also ship a legacy pixmaps icon.
-if [ -f "$WORK/payload/usr/share/pixmaps/claude-desktop.png" ]; then
+if [ -f "$WORK/payload/usr/share/pixmaps/claude-desktop.png" ] \
+    || [ -L "$WORK/payload/usr/share/pixmaps/claude-desktop.png" ]; then
     EXTRA_FILES+="/usr/share/pixmaps/claude-desktop.png"$'\n'
+fi
+
+# Keep these patterns and the desktop entry check below in sync with %files.
+listed_payload_path() {
+    local path=$1
+    case "$path" in
+        usr/bin/claude-desktop|usr/lib/claude-desktop/[^.]*|\
+        usr/share/doc/claude-desktop|usr/share/doc/claude-desktop/*)
+            return 0 ;;
+    esac
+    # The hicolor glob matches one non-hidden directory component, not a subtree.
+    [[ "$path" =~ ^usr/share/icons/hicolor/[^./][^/]*/apps/claude-desktop\.png$ ]] && return 0
+    # Match whole literal entries, not the existing %dir directives.
+    [[ "$path" != *$'\n'* && $'\n'"$EXTRA_FILES" == *$'\n'"/$path"$'\n'* ]]
+}
+
+# Only write simple literal paths into the spec. RPM parses whitespace,
+# quotes, glob characters and percent macros in file list entries.
+rpm_literal_path() { [[ "$1" =~ ^[A-Za-z0-9._/+~@:,=-]+$ ]]; }
+
+# Scan the entire staged tree before the tar step, which only copies usr/.
+# Do not follow symlinks or scan the lintian tree removed by %install.
+( cd "$WORK/payload" && find . -path ./usr/share/lintian -prune -o ! -type d -print0 ) \
+    > "$WORK/payload-paths" || die "could not list the staged payload"
+review=""
+while IFS= read -r -d '' entry; do
+    path=${entry#./}
+    if [[ "$path" == "usr/share/applications/$DESKTOP_FILE" ]]; then
+        rpm_literal_path "$path" && continue
+    elif listed_payload_path "$path"; then
+        continue
+    fi
+
+    shown="/$path"
+    if [[ "$shown" == *[![:print:]]* ]]; then
+        printf -v shown '%q' "$shown"
+    fi
+    if [[ "$path" != usr/share/* ]]; then
+        reason="unexpected location"
+    elif ! rpm_literal_path "$path"; then
+        reason="name cannot be added safely to the RPM file list"
+    elif [ ! -f "$WORK/payload/$path" ] && [ ! -L "$WORK/payload/$path" ]; then
+        reason="not a regular file or symlink"
+    else
+        warn "packaging new upstream file: /$path"
+        # Leave new directories unowned rather than claiming shared directories.
+        EXTRA_FILES+="/$path"$'\n'
+        continue
+    fi
+    review+=$'\n'"  $shown ($reason)"
+done < "$WORK/payload-paths"
+if [ -n "$review" ]; then
+    die "cannot package these upstream files:$review"$'\n'"Report them at https://github.com/dewzor/claude-desktop-fedora/issues"
 fi
 
 # ------------------------------------------------------------ rpm build ------
@@ -437,6 +501,7 @@ cp -a usr %{buildroot}/
 rm -rf %{buildroot}%{_datadir}/lintian
 
 %files
+# Keep these entries in sync with listed_payload_path() and the desktop check.
 %dir %{_prefix}/lib/claude-desktop
 %{_prefix}/lib/claude-desktop/*
 # Chromium's SUID sandbox helper; upstream ships it 4755 and tar-as-user drops that.
