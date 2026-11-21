@@ -1,5 +1,13 @@
 # Changelog
 
+## v9.5 (unreleased)
+
+**New desktop data files no longer break the daily update.**
+
+- The builder packages new files and symlinks under `/usr/share/` and logs a warning naming each one. Debian lintian metadata is still left out.
+- If upstream adds an unknown file outside `/usr/share/`, or a name the builder cannot safely add to the RPM, the build stops before running `rpmbuild`. The error lists the paths to report in an issue. The daily timer leaves the installed version alone when this happens.
+- `claude-desktop-builder` 1.0.5 on COPR.
+
 ## v9.4 (2026-11-21)
 
 **Claude Desktop 6.28899.2 builds again, and Fedora 45 is supported.** Build fix by [@sin4ch](https://github.com/sin4ch) in [#12](https://github.com/dewzor/claude-desktop-fedora/pull/12).
