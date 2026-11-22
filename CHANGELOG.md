@@ -16,7 +16,7 @@
 - Fedora 45: the COPR project now builds `claude-desktop-builder` for it, so `dnf` no longer gets a 404 ([#10](https://github.com/dewzor/claude-desktop-fedora/issues/10)). Tested in a clean Fedora 45 container.
 - Fedora 43 with Xfce (X11) tested by [@antoine79](https://github.com/antoine79) in [#9](https://github.com/dewzor/claude-desktop-fedora/pull/9).
 - Troubleshooting: a workaround for Ctrl+Alt+Space not working on KDE Plasma Wayland ([#11](https://github.com/dewzor/claude-desktop-fedora/issues/11)).
-- `claude-desktop-builder` 1.0.4. COPR went straight to 1.0.5, released the same day, which includes it.
+- `claude-desktop-builder` 1.0.4. COPR went straight to 1.0.5 (v9.5), which includes it.
 
 ## v9.3 (2026-10-22)
 
