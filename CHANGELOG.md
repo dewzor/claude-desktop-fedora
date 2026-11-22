@@ -1,6 +1,6 @@
 # Changelog
 
-## v9.5 (unreleased)
+## v9.5 (2026-11-22)
 
 **New desktop data files no longer break the daily update.**
 

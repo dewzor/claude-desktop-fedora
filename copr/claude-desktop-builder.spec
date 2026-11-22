@@ -84,7 +84,7 @@ fi
 %dir %{_sharedstatedir}/%{name}
 
 %changelog
-* Sat Nov 21 2026 dewzor <16418668+dewzor@users.noreply.github.com> - 1.0.5-1
+* Sun Nov 22 2026 dewzor <16418668+dewzor@users.noreply.github.com> - 1.0.5-1
 - Package new files under /usr/share/ and stop with a list of paths to
   report if upstream adds files outside the known paths.
 
